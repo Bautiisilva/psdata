@@ -85,7 +85,43 @@ raf=requestAnimationFrame(t=>{prev=t;frame(t)})}
 function vR(v){const o=[...D.keys()].sort((a,b)=>D[b].pts-D[a].pts),mx=Math.max(...D.map(d=>d.sd));
 v.innerHTML=`<div class="card"><table><tr><th>Piloto</th><th>Pts</th><th>Mejor vuelta</th><th>Regularidad</th></tr>${o.map((i,k)=>{const d=D[i];return`<tr><td style="padding:10px 4px"><b style="font:700 18px 'Barlow Condensed',sans-serif">${k+1}</b> <i class="chip" style="background:${d.c}"></i>${d.n}</td><td>${d.pts}</td><td style="font-family:'Barlow Condensed',sans-serif;font-size:17px">${fmt(d.best.time)}</td><td><div class="bar" title="σ ${d.sd.toFixed(3)} s"><i style="width:${100-d.sd/mx*70}%;background:${d.c}"></i></div></td></tr>`}).join('')}</table>
 <p class="mut">Regularidad: más barra, menos variación entre vueltas (se excluye la vuelta de salida).</p></div>`}
+/* Sesiones */
+const TIPOS=['Mini (6-8 años)','Cadete','Junior','Senior','Master','Alquiler / rental','Shifter (con cambios)'];
+const MOTORES=['60cc 2T','IAME X30 125cc','Rotax Max 125cc','Vortex 125cc','KZ 125cc (con cambios)','Honda GX 4T','Briggs & Stratton 4T','Eléctrico'];
+const SK='psdata-sesiones';
+const loadS=()=>{try{return JSON.parse(localStorage.getItem(SK))||[]}catch(e){return[]}};
+const saveS=a=>{try{localStorage.setItem(SK,JSON.stringify(a));return true}catch(e){return false}};
+const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
+function vS(v){let S=loadS(),filt='';
+const now=new Date(),pad=n=>String(n).padStart(2,'0'),hoy=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
+const dl=(id,a)=>`<datalist id="${id}">${[...new Set(a)].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
+const lastOf=k=>S.length?S[S.length-1][k]:'';
+v.innerHTML=`<div class="ses"><form class="card col" id="fs" autocomplete="off"><h2>Nueva sesión</h2>
+<label>Piloto<input name="piloto" list="dlp" required placeholder="Elegí o escribí un nombre" value="${esc(lastOf('piloto'))}"></label>
+<div class="pair"><label>Fecha<input name="fecha" type="date" required value="${hoy}"></label><label>Hora de la sesión<input name="hora" type="time" required value="${hora}"></label></div>
+<label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label>
+<label>Tipo de kart<input name="tipo" list="dlt" required placeholder="Elegí o escribí" value="${esc(lastOf('tipo'))}"></label>
+<label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
+<button class="cta" type="submit">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
+<div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
+<div class="tools"><select id="fp" aria-label="Filtrar por piloto"></select><button type="button" class="ghost" id="csv">Exportar CSV</button></div></div>
+<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Kart</th><th>Tipo</th><th>Motor</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div></div>
+${dl('dlp',[...D.map(d=>d.n),...S.map(x=>x.piloto)])}${dl('dlt',[...TIPOS,...S.map(x=>x.tipo)])}${dl('dlm',[...MOTORES,...S.map(x=>x.motor)])}`;
+const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
+$('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
+const rows=S.map((x,i)=>({...x,i})).filter(x=>!filt||x.piloto===filt).sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
+$('#cnt').textContent='· '+rows.length;
+$('#tb').innerHTML=rows.length?rows.map(x=>`<tr><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td><button type="button" class="del" data-i="${x.i}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="7" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`};
+draw();
+$('#fs').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),x={};['piloto','fecha','hora','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)).trim());
+if(!x.piloto||!x.tipo||!x.motor)return;S.push(x);const ok=saveS(S);
+$('#msg').textContent=ok?`Sesión de ${x.piloto} guardada.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw()};
+$('#fp').onchange=e=>{filt=e.target.value;draw()};
+$('#tb').onclick=e=>{const b=e.target.closest('.del');if(!b)return;const x=S[+b.dataset.i];if(!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;S.splice(+b.dataset.i,1);saveS(S);draw()};
+$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Kart','Tipo de kart','Motor'],...S.filter(x=>!filt||x.piloto===filt).map(x=>[x.piloto,x.fecha,x.hora,x.kart,x.tipo,x.motor])];
+const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv'}));a.download='sesiones-psdata.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
 const pg=document.body.dataset.page;
-const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,l:vL,r:vR}[pg];
+const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,l:vL,r:vR,s:vS}[pg];
 const view=()=>{stop();fn($('#view'))};
 if(fn&&$('#view'))view();
