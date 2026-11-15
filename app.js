@@ -27,7 +27,7 @@ const g=d.laps.slice(1).map(x=>x.time),m=g.reduce((a,b)=>a+b)/g.length;d.sd=Math
 /* utilidades */
 const st={tab:'a',A:0,B:1,la:'best',lb:'best',i:40,f:0};
 const li=(d,l)=>l==='best'?D[d].bi:l,get=(d,l)=>D[d].laps[li(d,l)];
-const lerp=(a,b,t)=>Math.round(a+(b-a)*t),col=v=>{const t=Math.max(0,Math.min(1,(v-34)/50));return`rgb(${lerp(228,47,t)},${lerp(56,111,t)},${lerp(74,222,t)})`};
+const lerp=(a,b,t)=>Math.round(a+(b-a)*t),col=v=>{const t=Math.max(0,Math.min(1,(v-34)/50));return`rgb(${lerp(228,45,t)},${lerp(56,212,t)},${lerp(74,191,t)})`};
 const path='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L')+'Z';
 function mapSVG(lap,dots){let s='';
 if(lap)for(let i=0;i<N;i++){const a=pts[i],b=pts[(i+1)%N];s+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${col(lap.v[i])}" stroke-width="9" stroke-linecap="round"/>`}
@@ -50,7 +50,7 @@ rows+=`<tr><td>&nbsp;${l+1}</td>${c('a',st.A,st.la)}${c('b',st.B,st.lb)}</tr>`}
 v.innerHTML=`<div class="two">
 <div class="card"><select id="sa" aria-label="Piloto A">${opts(st.A)}</select><div class="big"><i class="chip" style="background:${A.c}"></i>${fmt(la.time)}</div><div class="mut">${lab(st.A,st.la)}</div></div>
 <div class="card"><select id="sb" aria-label="Piloto B">${opts(st.B)}</select><div class="big"><i class="chip" style="background:${B.c}"></i>${fmt(lb.time)}</div><div class="mut">${lab(st.B,st.lb)}</div></div></div>
-<div class="card"><div class="mut">Mapa de velocidad de ${A.n.split(' ')[0]} · rojo frena, azul acelera</div>${mapSVG(la,dot('dB',B.c)+dot('dA',A.c))}</div>
+<div class="card"><div class="mut">Mapa de velocidad de ${A.n.split(' ')[0]} · rojo frena, verde agua acelera</div>${mapSVG(la,dot('dB',B.c)+dot('dA',A.c))}</div>
 <div class="card"><div class="mut">Deslizá sobre el gráfico para recorrer la vuelta</div>
 <svg id="ch" class="chart" viewBox="0 0 740 300" role="img" aria-label="Velocidad y diferencia de tiempo por metro">${grid}${line(la,A.c)}${line(lb,B.c)}
 <text x="36" y="206">Diferencia de tiempo (s): arriba, ${A.n.split(' ')[0]} va más rápido</text><line x1="36" x2="726" y1="250" y2="250" stroke="var(--line)"/>
