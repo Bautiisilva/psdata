@@ -423,27 +423,39 @@ const avg=k=>otros.length?otros.reduce((s,o)=>s+o[k],0)/otros.length:null;
 return{n:ci+1,ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});
 return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref}}
 const r0=x=>Math.round(Math.abs(x)),r1=x=>Math.abs(x).toFixed(1);
-function causa(dF,dM,dE,quien){const p=[];
-if(dF>6)p.push(`frena ${r0(dF)} m antes de lo necesario`);else if(dF<-6)p.push(`frena ${r0(dF)} m más tarde y se pasa`);
-if(dM<-2&&!(dF<-6))p.push(`la velocidad mínima cae ${r1(dM)} km/h (sobrefrenada o línea muy cerrada)`);
-if(dM>2&&dE<-1.5)p.push(`entra ${r1(dM)} km/h más rápido pero sale ${r1(dE)} km/h más lento: compromete la salida`);
-else if(dE<-2)p.push(`sale ${r1(dE)} km/h más lento: acelera tarde o la línea no abre la salida`);
-return p.length?p.join('; '):'la diferencia está repartida en toda la curva (línea y suavidad)'}
-function observaciones(R,x,refx){const o=[],rec=[];
-const gIdeal=R.best.t-R.ideal;
-o.push({h:'Resumen',t:[`Mejor vuelta ${fmtLap(R.best.t)} (vuelta ${R.best.n} de ${R.laps.length}). Vuelta ideal combinando sus mejores sectores: ${fmtLap(R.ideal)} → ${gIdeal>0.0005?`hay ${gIdeal.toFixed(3)} s para ganar sin cambiar nada del kart.`:'su mejor vuelta ya junta sus mejores sectores.'}`,
-R.val>1?`Constancia: desvío de ${R.sd.toFixed(3)} s entre vueltas (promedio ${fmtLap(R.mean)}). ${R.sd<=0.25?'Muy buena regularidad.':R.sd<=0.5?'Regularidad aceptable; el objetivo es bajar de 0.25 s.':'Poca regularidad: primero hay que repetir la misma vuelta antes de buscar velocidad.'}`:'Hay una sola vuelta comparable: con más vueltas el análisis de constancia es más preciso.',
-R.fuera.length?`Vueltas fuera de ritmo (más de 7% lentas, tráfico o error): ${R.fuera.map(l=>l.n).join(', ')}. No se usan para los promedios.`:''].filter(Boolean)});
-const peor=R.C.filter(c=>c.otros.length).sort((a,b)=>b.avgLoss-a.avgLoss);
-peor.forEach(c=>{if(c.avgLoss>0.04)rec.push({g:c.avgLoss,t:`Curva ${c.n}: pierde en promedio ${c.avgLoss.toFixed(3)} s contra su mejor vuelta; ${causa(c.dFreno,c.dMin,c.dEx)}. Objetivo (su mejor vuelta): frenar a ${r0(c.mb.freno)} m del vértice, mínima ${r0(c.mb.vmin)} km/h, salida ${r0(c.mb.vex)} km/h.`})});
-if(R.ref)R.C.forEach(c=>{const v=c.vsRef;if(v&&v.loss>0.04)rec.push({g:v.loss,t:`Curva ${c.n} contra ${refx.piloto}: pierde ${v.loss.toFixed(3)} s; ${causa(c.mb.freno-v.freno,c.mb.vmin-v.vmin,c.mb.vex-v.vex)}. Referencia de ${refx.piloto}: frena a ${r0(v.freno)} m, mínima ${r0(v.vmin)} km/h, salida ${r0(v.vex)} km/h.`})});
-if(R.val>1&&R.sd>0.3)rec.push({g:R.mean-R.best.t,t:`Constancia: el promedio está ${(R.mean-R.best.t).toFixed(3)} s arriba de la mejor vuelta. Trabajar puntos de referencia fijos (cono, cordón, marca en el asfalto) para frenar siempre en el mismo lugar.`});
-const sv=R.sec.map(q=>({k:q.k+1,g:q.mine-q.best,de:q.de})).filter(q=>q.g>0.03).sort((a,b)=>b.g-a.g);
-if(sv.length)rec.push({g:sv[0].g*.6,t:`Sectores: en su mejor vuelta todavía pierde tiempo en ${sv.slice(0,3).map(q=>`el sector ${q.k} (${q.g.toFixed(3)} s, lo hizo mejor en la vuelta ${q.de})`).join(', ')}. Repetir lo que hizo en esas vueltas.`});
+const segs=g=>{const v=Math.abs(g);return (v<1?v.toFixed(2):v.toFixed(1)).replace('.',',')+' segundos'};
+const karts=m=>{const k=Math.max(1,Math.round(Math.abs(m)/2));return`${r0(m)} metros (como ${k} ${k===1?'kart':'karts'})`};
+/* Qué pasa en la curva y qué hacer, en palabras simples */
+function consejo(dF,dM,dE){
+if(dF>6)return{que:`Frenás muy temprano: ${karts(dF)} antes de lo que hace falta.`,tip:'Esperá un poquito más antes de frenar.'};
+if(dF<-6)return{que:`Frenás muy tarde: ${karts(dF)} después de lo que hace falta, y te pasás de la curva.`,tip:'Frená un poquito antes así doblás mejor.'};
+if(dM>2&&dE<-1.5)return{que:`Entrás muy rápido y después salís lento.`,tip:'Entrá un poquito más despacio para poder acelerar antes.'};
+if(dM<-2)return{que:`Vas muy despacio en el medio de la curva (${r0(dM)} km/h menos).`,tip:'Soltá antes el freno: el kart puede doblar más rápido.'};
+if(dE<-2)return{que:`Acelerás tarde al salir de la curva (salís ${r0(dE)} km/h más lento).`,tip:'Apenas ves la salida de la curva, ¡a fondo!'};
+return{que:'Perdés un poquito en toda la curva.',tip:'Hacé la curva igual que en tu mejor vuelta: misma frenada y mismo camino.'}}
+function observaciones(R,x,refx){const o=[],rec=[],nom=(x.piloto||'').split(' ')[0];
+const gIdeal=Math.max(0,R.best.t-R.ideal);
+// lo que hizo bien
+const bien=[`Tu mejor vuelta fue la número ${R.best.n}: ${fmtLap(R.best.t)}. ¡Ese es tu tiempo para mejorar!`];
+if(R.val>1&&R.sd<=0.25)bien.push('Tus vueltas son muy parecidas entre sí. ¡Eso es ser muy parejo! 👏');
+const buenas=R.C.filter(c=>c.otros.length&&c.avgLoss<0.04).map(c=>c.n);
+if(buenas.length)bien.push(`${buenas.length===1?'La curva':'Las curvas'} ${buenas.join(', ')} ${buenas.length===1?'te sale':'te salen'} siempre bien. ✅`);
+if(gIdeal>0.05)bien.push(`Si juntás las mejores partes de todas tus vueltas, harías ${fmtLap(R.ideal)}: ${segs(gIdeal)} menos. ¡Ya lo hiciste por partes, así que podés!`);
+o.push({h:'⭐ Lo que hiciste bien',t:bien});
+// para mejorar
+R.C.filter(c=>c.otros.length&&c.avgLoss>0.04).forEach(c=>{const k=consejo(c.dFreno,c.dMin,c.dEx);rec.push({g:c.avgLoss,t:`Curva ${c.n}: ${k.que} 👉 ${k.tip} Podés ganar ${segs(c.avgLoss)}.`})});
+if(R.ref)R.C.forEach(c=>{const v=c.vsRef;if(v&&v.loss>0.04){const k=consejo(c.mb.freno-v.freno,c.mb.vmin-v.vmin,c.mb.vex-v.vex);rec.push({g:v.loss,t:`Curva ${c.n} (mirando a ${refx.piloto}): ${k.que} 👉 ${k.tip} ${refx.piloto} ahí es ${segs(v.loss)} más rápido.`})}});
+if(R.val>1&&R.sd>0.3)rec.push({g:R.mean-R.best.t,t:`Tus vueltas cambian mucho entre una y otra. 👉 Elegí un lugar fijo para frenar en cada curva (un cono, una mancha, el cordón) y frená siempre ahí. Así cada vuelta te sale como la mejor.`});
 rec.sort((a,b)=>b.g-a.g);
-o.unshift({h:'Lo más importante',ol:rec.slice(0,5).map(r=>r.t+` (≈ ${r.g.toFixed(2)} s)`),vacio:'No aparecen pérdidas claras: las vueltas son muy parejas. Para seguir mejorando, comparalo con un piloto más rápido de su categoría.'});
-o.push({h:'Curva por curva',ul:R.C.map(c=>`Curva ${c.n} (a ${c.dist} m de la largada): en la mejor vuelta frena a ${r0(c.mb.freno)} m del vértice, entra a ${r0(c.mb.vin)} km/h, mínima ${r0(c.mb.vmin)} km/h, sale a ${r0(c.mb.vex)} km/h.${c.otros.length?` Resto de las vueltas: ${c.avgLoss>=0?'pierde':'gana'} ${Math.abs(c.avgLoss).toFixed(3)} s en promedio.`:''}${c.vsRef?` Contra ${refx.piloto}: ${c.vsRef.loss>=0?'pierde':'gana'} ${Math.abs(c.vsRef.loss).toFixed(3)} s.`:''}`),vacio:'No se detectaron curvas claras en la velocidad de la mejor vuelta.'});
-o.push({h:'Cómo se calcula',t:['Las curvas se detectan donde la velocidad de la mejor vuelta baja y vuelve a subir. La frenada es la distancia entre el punto de máxima velocidad antes de la curva y el vértice. Las vueltas más de 7% lentas no cuentan para los promedios.']});
+o.push({h:'🎯 Para mejorar (lo más importante)',ol:rec.slice(0,3).map(r=>r.t),vacio:'¡Muy bien! No hay errores grandes: tus vueltas son muy parecidas. Para seguir bajando el tiempo, mirá cómo lo hace un piloto más rápido.'});
+if(rec.length>3)o.push({h:'📝 Después, cuando lo anterior te salga',ul:rec.slice(3,5).map(r=>r.t)});
+// parejo
+if(R.val>1)o.push({h:'🔁 ¿Fuiste parejo?',t:[R.sd<=0.25?'Sí, ¡muy parejo! Tus vueltas casi no cambian.':R.sd<=0.5?`Bastante parejo. Tus vueltas cambian unos ${segs(R.sd)}. La meta es que cambien menos de 0,25 segundos.`:`No mucho todavía: tus vueltas cambian unos ${segs(R.sd)}. Primero tratá de hacer siempre la misma vuelta; la velocidad viene después.`,
+...(R.fuera.length?[`Las vueltas ${R.fuera.map(l=>l.n).join(', ')} fueron mucho más lentas (tráfico o un error), así que no las tuve en cuenta.`]:[])]});
+// para el entrenador
+o.push({h:'🛠️ Para el entrenador (datos técnicos)',ul:[`Mejor vuelta ${fmtLap(R.best.t)} · vuelta ideal ${fmtLap(R.ideal)} · promedio ${fmtLap(R.mean)} · desvío ${R.sd.toFixed(3)} s.`,
+...R.C.map(c=>`Curva ${c.n} (${c.dist} m): frenada a ${r0(c.mb.freno)} m del vértice, entrada ${r0(c.mb.vin)}, mínima ${r0(c.mb.vmin)}, salida ${r0(c.mb.vex)} km/h${c.otros.length?` · resto de las vueltas ${c.avgLoss>=0?'+':'−'}${Math.abs(c.avgLoss).toFixed(3)} s`:''}${c.vsRef?` · vs ${refx.piloto} ${c.vsRef.loss>=0?'+':'−'}${Math.abs(c.vsRef.loss).toFixed(3)} s`:''}.`),
+'Curvas detectadas en la mejor vuelta (donde la velocidad baja y vuelve a subir). Vueltas más de 7% lentas no cuentan para los promedios.']});
 return o}
 const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${t}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+t):[s.vacio]):[]),''])].join('\r\n');
 async function vCoach(v){
