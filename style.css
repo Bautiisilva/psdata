@@ -205,3 +205,30 @@ body[data-page="h"] #view{max-width:980px;margin-inline:auto}
 .sect td,.sect th{text-align:center;padding:6px 4px}
 .sect td.win{font-weight:700}
 .sect tr.tot td{border-top:2px solid var(--line);font-weight:700}
+/* Coach */
+.coach{display:grid;gap:12px}
+.cmid{display:grid;gap:12px;align-content:start}
+.cmid .card{margin-bottom:0}
+.cdata h2,.cobs h2,.cmid h2{font:700 22px "Barlow Condensed",sans-serif;margin:0 0 6px}
+.cpil{border-top:1px solid var(--line)}
+.cpil summary{cursor:pointer;padding:9px 2px;font:700 18px "Barlow Condensed",sans-serif;list-style:none}
+.cpil summary::-webkit-details-marker{display:none}
+.cpil summary::after{content:" ›";color:var(--mut)}
+.cpil[open] summary::after{content:" ⌄"}
+.cdia{font-size:12px;color:var(--mut);margin:6px 0 4px}
+.ctan{display:grid;grid-template-columns:auto 1fr;gap:0 8px;width:100%;text-align:left;background:var(--bg);border:1px solid transparent;color:var(--ink);border-radius:8px;padding:7px 9px;margin-bottom:5px;cursor:pointer;font:500 15px Barlow,sans-serif}
+.ctan .t{text-align:right;font:700 16px "Barlow Condensed",sans-serif;color:var(--mv)}
+.ctan .mut{grid-column:1/-1;font-size:12px}
+.ctan.on{border-color:var(--acc)}
+.ctan:hover{border-color:var(--line)}
+.refl{display:block;color:var(--mut);font-size:13px;margin:10px 0}
+.refl select{margin-top:4px}
+.cnum{fill:var(--bg);font-family:"Barlow Condensed",sans-serif;font-weight:700;text-anchor:middle}
+.obs h3{font:700 18px "Barlow Condensed",sans-serif;margin:14px 0 6px;color:var(--acc)}
+.obs h3:first-child{margin-top:4px}
+.obs p,.obs li{font-size:14.5px;line-height:1.5;margin:0 0 8px}
+.obs ol,.obs ul{padding-left:20px;margin:0 0 8px}
+.obs ol li::marker{color:var(--mv);font-weight:700}
+@media(min-width:1100px){.coach{grid-template-columns:260px minmax(0,1fr) 380px;align-items:start}.cobs{position:sticky;top:10px;max-height:calc(100vh - 20px);overflow:auto}}
+@media(min-width:760px) and (max-width:1099px){.coach{grid-template-columns:240px minmax(0,1fr)}.cobs{grid-column:1/-1}}
+@media(max-width:440px){nav{display:grid;grid-template-columns:repeat(3,1fr)}nav a{font-size:15px;padding:8px 2px}}
