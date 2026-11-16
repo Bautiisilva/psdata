@@ -64,23 +64,6 @@ const ch=$('#ch');const mvp=e=>{const r=ch.getBoundingClientRect(),f=(e.clientX-
 ch.addEventListener('pointerdown',mvp);ch.addEventListener('pointermove',mvp);sc(st.i);
 $('#sa').onchange=e=>{st.A=+e.target.value;st.la='best';view()};$('#sb').onchange=e=>{st.B=+e.target.value;st.lb='best';view()};
 v.querySelectorAll('td button').forEach(b=>b.onclick=()=>{st[b.dataset.k==='a'?'la':'lb']=+b.dataset.l;view()})}
-/* En vivo */
-function vL(v){
-const S=D.map((d,i)=>({s:-i*10,l0:0,last:null,best:null,n:-1}));let tn=0,prev=0,acc=0,order=[...D.keys()];
-v.innerHTML=`<div class="card">${mapSVG(null,D.map((d,i)=>dot('p'+i,d.c)).join(''))}<div class="mut">Simulación a velocidad 3×</div></div>
-<div class="card"><div class="tele"><div><div class="big" id="tv">0</div><div class="mut">km/h</div></div><div><div class="big" id="tg">0.0</div><div class="mut">G lateral</div></div><div><div class="big" id="tl">1</div><div class="mut">vuelta</div></div></div><div class="mut" id="tn" style="text-align:center;margin-top:8px"></div></div>
-<div class="card" id="bd"></div>`;
-$('#bd').addEventListener('pointerdown',e=>{const r=e.target.closest('[data-i]');if(r)st.f=+r.dataset.i});
-function frame(ts){const dt=Math.min(.05,(ts-prev)/1000)*3;prev=ts;tn+=dt;
-S.forEach((p,i)=>{const ix=Math.floor((((p.s%L)+L)%L)/ds)%N;p.s+=D[i].laps[3].v[ix]/3.6*dt;p.ix=ix;mv('p'+i,ix);
-const n=Math.floor(p.s/L);if(n>p.n){p.n=n;if(n>=1){p.last=tn-p.l0;if(p.best===null||p.last<p.best)p.best=p.last}p.l0=tn}});
-const f=S[st.f],ix=f.ix||0,vk=D[st.f].laps[3].v[ix];
-$('#tv').textContent=Math.round(vk);$('#tg').textContent=((vk/3.6)**2*cv[ix]/ds/9.81).toFixed(1);$('#tl').textContent=Math.max(1,f.n+1);
-$('#tn').textContent=`${D[st.f].n} · última ${f.last?fmt(f.last):'—'} · mejor ${f.best?fmt(f.best):'—'}`;
-acc+=dt;if(acc>.75||!$('#bd').firstChild){acc=0;order=S.map((p,i)=>i).sort((a,b)=>S[b].s-S[a].s);const ld=S[order[0]].s;
-$('#bd').innerHTML=order.map((i,k)=>`<button class="row ${i===st.f?'on':''}" data-i="${i}"><b>${k+1}</b><i class="chip" style="background:${D[i].c}"></i>${D[i].n}<span class="g">${k?'+'+((ld-S[i].s)/19).toFixed(1)+' s':'líder'}</span></button>`).join('')}
-raf=requestAnimationFrame(frame)}
-raf=requestAnimationFrame(t=>{prev=t;frame(t)})}
 /* Ranking */
 function vR(v){const o=[...D.keys()].sort((a,b)=>D[b].pts-D[a].pts),mx=Math.max(...D.map(d=>d.sd));
 v.innerHTML=`<div class="card"><table><tr><th>Piloto</th><th>Pts</th><th>Mejor vuelta</th><th>Regularidad</th></tr>${o.map((i,k)=>{const d=D[i];return`<tr><td style="padding:10px 4px"><b style="font:700 18px 'Barlow Condensed',sans-serif">${k+1}</b> <i class="chip" style="background:${d.c}"></i>${d.n}</td><td>${d.pts}</td><td style="font-family:'Barlow Condensed',sans-serif;font-size:17px">${fmt(d.best.time)}</td><td><div class="bar" title="σ ${d.sd.toFixed(3)} s"><i style="width:${100-d.sd/mx*70}%;background:${d.c}"></i></div></td></tr>`}).join('')}</table>
@@ -268,6 +251,6 @@ try{await rpc('cambiar_clave',{p_id:t.dataset.pw,p_clave:c});cm.innerHTML=`Contr
 if(t.dataset.rm){if(!confirm(`¿Borrar la cuenta de ${t.dataset.n}? Ya no va a poder entrar. Sus sesiones no se borran.`))return;
 try{await rpc('eliminar_usuario',{p_id:t.dataset.rm});cm.textContent=`Cuenta de ${t.dataset.n} borrada.`;if(ver===t.dataset.n){ver='';lsSet('psdata-ver','')}await load()}catch(err){cm.textContent='No se pudo borrar: '+err.message}}}}
 const pg=document.body.dataset.page;
-const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,l:vL,r:vR,s:vS,d:vDr}[pg];
+const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,r:vR,s:vS,d:vDr}[pg];
 const view=()=>{stop();fn($('#view'))};
 if(fn&&$('#view'))view();
