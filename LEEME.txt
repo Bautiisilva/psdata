@@ -1,3 +1,11 @@
 1. Buscá y reemplazá TUDOMINIO.com por tu dominio real en todos los archivos (index, analisis, en-vivo, ranking, sesiones, sitemap.xml, robots.txt).
 2. Subí la carpeta completa a Cloudflare Pages, Netlify o GitHub Pages.
 3. Registrá el sitio en Google Search Console y enviá sitemap.xml.
+
+BASE DE DATOS DE SESIONES (para que queden guardadas siempre)
+4. Creá una cuenta gratis en https://supabase.com y un proyecto nuevo.
+5. En el proyecto: SQL Editor → New query → pegá el contenido de supabase.sql → Run.
+6. En Project Settings → API copiá la "Project URL" y la clave pública ("anon" o "publishable").
+7. Abrí config.js y pegalas en url y key. Subí el sitio de nuevo.
+   En la página Sesiones vas a ver "● Guardado en la nube". Las sesiones que ya tenías en el navegador se suben solas.
+Nota: en el plan gratis, si nadie usa el proyecto por una semana Supabase lo pausa. Los datos no se pierden: lo reactivás desde el panel.
