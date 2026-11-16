@@ -9,3 +9,9 @@ BASE DE DATOS DE SESIONES (para que queden guardadas siempre)
 7. Abrí config.js y pegalas en url y key. Subí el sitio de nuevo.
    En la página Sesiones vas a ver "● Guardado en la nube". Las sesiones que ya tenías en el navegador se suben solas.
 Nota: en el plan gratis, si nadie usa el proyecto por una semana Supabase lo pausa. Los datos no se pierden: lo reactivás desde el panel.
+
+CUENTAS (Drivers)
+8. En Supabase → SQL Editor, pegá y corré cuentas.sql.
+9. Creá tu usuario de administrador corriendo (con tu usuario y contraseña):
+   select public.crear_usuario('tu-usuario', 'tu-contraseña', 'Administrador', 'admin');
+10. Entrá a Drivers con ese usuario y creá la cuenta de cada piloto.

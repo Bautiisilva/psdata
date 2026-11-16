@@ -85,37 +85,80 @@ raf=requestAnimationFrame(t=>{prev=t;frame(t)})}
 function vR(v){const o=[...D.keys()].sort((a,b)=>D[b].pts-D[a].pts),mx=Math.max(...D.map(d=>d.sd));
 v.innerHTML=`<div class="card"><table><tr><th>Piloto</th><th>Pts</th><th>Mejor vuelta</th><th>Regularidad</th></tr>${o.map((i,k)=>{const d=D[i];return`<tr><td style="padding:10px 4px"><b style="font:700 18px 'Barlow Condensed',sans-serif">${k+1}</b> <i class="chip" style="background:${d.c}"></i>${d.n}</td><td>${d.pts}</td><td style="font-family:'Barlow Condensed',sans-serif;font-size:17px">${fmt(d.best.time)}</td><td><div class="bar" title="σ ${d.sd.toFixed(3)} s"><i style="width:${100-d.sd/mx*70}%;background:${d.c}"></i></div></td></tr>`}).join('')}</table>
 <p class="mut">Regularidad: más barra, menos variación entre vueltas (se excluye la vuelta de salida).</p></div>`}
-/* Sesiones */
+/* Sesiones y cuentas */
 const PISTAS=['HMS Clockwise','HMS Counter-Clockwise','HMS (sin horquilla)'];
 const TIPOS=['Shifter','L206','Rotax Sr','Rotax Jr','K100 Sr','K100 Jr','DD2','Micro Mini','Bambino'];
 const MOTORES=['60cc 2T','IAME X30 125cc','Rotax Max 125cc','Vortex 125cc','KZ 125cc (con cambios)','Honda GX 4T','Briggs & Stratton 4T','Eléctrico'];
-const SK='psdata-sesiones',CFG=window.PSDATA_DB||{},CLOUD=!!(CFG.url&&CFG.key);
+const SK='psdata-sesiones',AK='psdata-auth',PK='psdata-drivers',DOM='@psdata.app',CFG=window.PSDATA_DB||{},CLOUD=!!(CFG.url&&CFG.key),BASE=CLOUD?CFG.url.replace(/\/+$/,''):'';
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
-const loadS=()=>{let a;try{a=JSON.parse(localStorage.getItem(SK))||[]}catch(e){a=[]}return a.map(x=>x.id?x:{...x,id:uid(),p:1})};
-const saveS=a=>{try{localStorage.setItem(SK,JSON.stringify(a));return true}catch(e){return false}};
+const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
+const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
+const loadS=()=>lsGet(SK,[]).map(x=>x.id?x:{...x,id:uid(),p:1});
+const saveS=a=>lsSet(SK,a);
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
+const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'],MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const flong=d=>{const[y,m,dd]=d.split('-').map(Number),w=new Date(y,m-1,dd).getDay();return`${DIAS[w][0].toUpperCase()+DIAS[w].slice(1)} ${dd} de ${MESES[m-1]} de ${y}`};
 const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
-const api=(q,o={})=>fetch(CFG.url.replace(/\/+$/,'')+'/rest/v1/sesiones'+q,{...o,headers:{apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key}),'Content-Type':'application/json',...(o.headers||{})}})
-.then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}).then(t=>t?JSON.parse(t):null);
 const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null});
+const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre';
 const BK='archivos',MAXF=50*1024*1024;
-const slug=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'archivo';
-const stor=(path,o={})=>fetch(CFG.url.replace(/\/+$/,'')+'/storage/v1/object/'+BK+'/'+path,{...o,headers:{apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key}),...(o.headers||{})}}).then(r=>{if(!r.ok)return r.text().then(t=>{throw new Error('HTTP '+r.status+' '+t.slice(0,120))});return r});
-const furl=x=>CFG.url.replace(/\/+$/,'')+'/storage/v1/object/public/'+BK+'/'+x.archivo+'?download='+encodeURIComponent(x.archivo_nombre||'archivo');
-const flink=(x,txt)=>x.archivo&&CLOUD?`<a class="file" href="${esc(furl(x))}" download="${esc(x.archivo_nombre||'')}" title="Descargar ${esc(x.archivo_nombre||'archivo')}">${txt}</a>`:'';
+const slug=t=>String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'archivo';
 const fsize=n=>n<1048576?Math.max(1,Math.round(n/1024))+' KB':(n/1048576).toFixed(1)+' MB';
-function vS(v){let S=loadS(),filt='',busy=false,again=false;const open=new Set();
+const topOf=(a,k)=>{const c=new Map();a.forEach(x=>{if(x[k])c.set(x[k],(c.get(x[k])||0)+1)});const t=[...c].sort((p,q)=>q[1]-p[1])[0];return t?t[0]:'—'};
+/* conexión y sesión de usuario */
+const pubH=()=>({apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key})});
+let AUTH=lsGet(AK,null);
+const setAuth=a=>{AUTH=a;lsSet(AK,a)};
+const jerr=async r=>{const t=await r.text();let j={};try{j=JSON.parse(t)}catch(e){}const e=new Error(j.message||j.error_description||j.msg||j.error||('HTTP '+r.status));e.status=r.status;throw e};
+async function tok(grant,body){const r=await fetch(BASE+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{...pubH(),'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)await jerr(r);const j=await r.json();
+return{access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||Math.floor(Date.now()/1000)+(j.expires_in||3600),uid:j.user&&j.user.id}}
+let refP=null;
+const refresh=()=>refP||(refP=tok('refresh_token',{refresh_token:AUTH.refresh_token}).then(a=>setAuth({...AUTH,...a})).catch(e=>{if(e.status&&e.status<500)setAuth(null);else throw e}).finally(()=>{refP=null}));
+async function hdr(){if(AUTH&&Date.now()/1000>AUTH.expires_at-60)await refresh();return AUTH?{apikey:CFG.key,Authorization:'Bearer '+AUTH.access_token}:pubH()}
+async function req(path,o={},retry=true){const r=await fetch(BASE+path,{...o,headers:{...(await hdr()),...(o.headers||{})}});
+if(r.status===401&&AUTH&&retry){await refresh();if(AUTH)return req(path,o,false)}
+if(!r.ok)await jerr(r);const t=await r.text();try{return t?JSON.parse(t):null}catch(e){return t}}
+const J={'Content-Type':'application/json'};
+const api=(q,o={})=>req('/rest/v1/sesiones'+q,{...o,headers:{...J,...(o.headers||{})}});
+const rpc=(fn,b)=>req('/rest/v1/rpc/'+fn,{method:'POST',headers:J,body:JSON.stringify(b)});
+const stor=(path,o={})=>req('/storage/v1/object/'+BK+'/'+path,o);
+const getPerfiles=()=>req('/rest/v1/perfiles?select=id,usuario,nombre,rol&order=nombre');
+async function login(u,p){const a=await tok('password',{email:String(u).trim().toLowerCase()+DOM,password:p});setAuth(a);
+const[pf]=await req('/rest/v1/perfiles?select=id,usuario,nombre,rol&id=eq.'+a.uid);if(!pf){setAuth(null);throw new Error('Esta cuenta no tiene perfil. Pedile al administrador que la revise.')}setAuth({...AUTH,perfil:pf})}
+async function whoami(){try{const[pf]=await req('/rest/v1/perfiles?select=id,usuario,nombre,rol&id=eq.'+AUTH.uid);if(pf)setAuth({...AUTH,perfil:pf});else setAuth(null)}catch(e){/* sin conexión: usa el perfil guardado */}return AUTH}
+function logout(){if(AUTH)fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+AUTH.access_token}}).catch(()=>{});setAuth(null);lsSet(SK,null);lsSet(PK,null);location.reload()}
+const ubar=()=>AUTH&&AUTH.perfil?`<div class="ubar"><span>Conectado como <b>${esc(AUTH.perfil.nombre)}</b> <span class="mut">@${esc(AUTH.perfil.usuario)}${AUTH.perfil.rol==='admin'?' · administrador':''}</span></span><button type="button" class="ghost" id="lo">Salir</button></div>`:'';
+const bindUbar=()=>{const b=$('#lo');if(b)b.onclick=logout};
+function gate(v,title,sub,done){v.innerHTML=`<form class="card col login" id="lf"><h2>${title}</h2><p class="mut">${sub}</p>
+<label>Usuario<input name="u" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+<label>Contraseña<input name="p" type="password" autocomplete="current-password" required></label>
+<button class="cta" type="submit">Entrar</button><div class="mut" id="lm" role="status"></div></form>`;
+$('#lf').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),b=e.target.querySelector('button');b.disabled=true;$('#lm').textContent='Entrando…';
+try{await login(f.get('u'),f.get('p'));done()}catch(err){$('#lm').textContent=/invalid login/i.test(err.message)?'Usuario o contraseña incorrectos.':/fetch/i.test(err.message)?'No hay conexión. Probá de nuevo.':err.message;b.disabled=false}}}
+/* archivos (privados: se descargan con un link temporal) */
+const flink=(x,txt)=>x.archivo&&CLOUD?`<button type="button" class="file" data-file="${esc(x.archivo)}" data-name="${esc(x.archivo_nombre||'')}">${txt}</button>`:'';
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-file]');if(!b)return;const old=b.innerHTML;b.textContent='Abriendo…';b.disabled=true;
+try{const j=await req('/storage/v1/object/sign/'+BK+'/'+b.dataset.file,{method:'POST',headers:J,body:JSON.stringify({expiresIn:300})});
+location.href=BASE+'/storage/v1'+(j.signedURL||j.signedUrl)+'&download='+encodeURIComponent(b.dataset.name||'archivo')}
+catch(err){alert('No se pudo descargar el archivo: '+err.message)}b.innerHTML=old;b.disabled=false});
+/* Sesiones (solo administrador) */
+async function vS(v){
+if(CLOUD&&!AUTH)return gate(v,'Ingresá como administrador','La carga de sesiones es solo para el administrador. Los pilotos ven sus tandas en Drivers.',()=>vS(v));
+if(CLOUD){await whoami();if(!AUTH)return vS(v);
+if(AUTH.perfil.rol!=='admin'){v.innerHTML=ubar()+`<div class="card"><h2 class="h2">Solo para el administrador</h2><p>Tus tandas están en tu perfil.</p><a class="cta" href="drivers.html">Ir a Drivers</a></div>`;bindUbar();return}}
+let S=loadS(),P=lsGet(PK,[]),filt='',busy=false,again=false;const open=new Set();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 const now=new Date(),pad=n=>String(n).padStart(2,'0'),hoy=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
 const dl=(id,a)=>`<datalist id="${id}">${[...new Set(a)].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
 const lastOf=k=>S.length?S[S.length-1][k]:'';
-v.innerHTML=`<div class="ses"><form class="card col" id="fs" autocomplete="off"><h2>Nueva sesión</h2>
-<label>Piloto<input name="piloto" list="dlp" required placeholder="Elegí o escribí un nombre" value="${esc(lastOf('piloto'))}"></label>
+const sel=(name,list,ph)=>`<select name="${name}" required><option value="" disabled${list.includes(lastOf(name))?'':' selected'}>${ph}</option>${list.map(t=>`<option${t===lastOf(name)?' selected':''}>${esc(t)}</option>`).join('')}</select>`;
+v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete="off"><h2>Nueva sesión</h2>
+<label>Piloto<span id="pwrap"></span></label>
 <div class="pair"><label>Fecha<input name="fecha" type="date" required value="${hoy}"></label><label>Hora de la sesión<input name="hora" type="time" required value="${hora}"></label></div>
-<label>Pista<select name="pista" required><option value="" disabled${PISTAS.includes(lastOf('pista'))?'':' selected'}>Elegí la pista</option>${PISTAS.map(t=>`<option${t===lastOf('pista')?' selected':''}>${t}</option>`).join('')}</select></label>
+<label>Pista${sel('pista',PISTAS,'Elegí la pista')}</label>
 <label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label>
-<label>Tipo de kart<select name="tipo" required><option value="" disabled${TIPOS.includes(lastOf('tipo'))?'':' selected'}>Elegí el tipo de kart</option>${TIPOS.map(t=>`<option${t===lastOf('tipo')?' selected':''}>${t}</option>`).join('')}</select></label>
+<label>Tipo de kart${sel('tipo',TIPOS,'Elegí el tipo de kart')}</label>
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
 <label class="drop">Archivo del logger <span class="opt">(opcional)</span><input name="archivo" type="file" id="fa"><span class="fn" id="fn">Tocá para elegir el archivo exportado (MyChron, AiM…)</span></label>
 <button class="cta" type="submit" id="gs">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
@@ -124,15 +167,17 @@ v.innerHTML=`<div class="ses"><form class="card col" id="fs" autocomplete="off">
 <div class="sync" id="sync" role="status"></div>
 <div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Pista</th><th>Kart</th><th>Tipo</th><th>Motor</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
 <aside class="card col" aria-labelledby="dh"><h2 id="dh">Drivers sessions</h2><div id="dv"></div></aside></div>
-<div id="dls"></div>`;
+<div id="dls"></div>`;bindUbar();
 const setSt=(k,t)=>{const e=$('#sync');e.className='sync '+k;e.textContent=t};
-const local=()=>setSt('warn','Guardadas solo en este navegador. Para que queden guardadas siempre y se vean desde cualquier dispositivo, conectá la base de datos (pasos en LEEME.txt).');
+const drawP=()=>{if(!CLOUD){$('#pwrap').innerHTML=`<input name="piloto" list="dlp" required placeholder="Elegí o escribí un nombre" value="${esc(lastOf('piloto'))}">`;return}
+const w=$('#pwrap'),cur=w.querySelector('select')?w.querySelector('select').value:lastOf('piloto'),ns=P.filter(p=>p.rol==='piloto').map(p=>p.nombre);
+w.innerHTML=ns.length?`<select name="piloto" required><option value="" disabled${ns.includes(cur)?'':' selected'}>Elegí el piloto</option>${ns.map(n=>`<option${n===cur?' selected':''}>${esc(n)}</option>`).join('')}</select>`
+:`<select name="piloto" required><option value="" selected disabled>Primero creá la cuenta del piloto en Drivers</option></select><a class="mini" href="drivers.html">Ir a Drivers →</a>`};
 const drawD=()=>{const g={};S.forEach(x=>(g[x.piloto]=g[x.piloto]||[]).push(x));
-const top=(a,k)=>{const c=new Map();a.forEach(x=>c.set(x[k],(c.get(x[k])||0)+1));return[...c].sort((p,q)=>q[1]-p[1])[0][0]};
-const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(b));
-$('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc),dc=D.find(d=>d.n===n);
-return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary><i class="chip" style="background:${dc?dc.c:'var(--acc)'}"></i><span class="dn">${esc(n)}</span><span class="dc">${a.length} ${a.length===1?'tanda':'tandas'}</span></summary>
-<dl class="dinfo"><div><dt>Última</dt><dd>${fdate(a[0].fecha)}</dd></div><div><dt>Kart habitual</dt><dd>#${esc(top(a,'kart'))}</dd></div><div><dt>Tipo</dt><dd>${esc(top(a,'tipo'))}</dd></div><div><dt>Motor</dt><dd>${esc(top(a,'motor'))}</dd></div></dl>
+const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(b)),acc=new Set(P.map(p=>p.nombre));
+$('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc);
+return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary><i class="chip" style="background:var(--acc)"></i><span class="dn">${esc(n)}</span>${CLOUD&&!acc.has(n)?'<span class="nocc" title="Este nombre no tiene cuenta en Drivers">sin cuenta</span>':''}<span class="dc">${a.length} ${a.length===1?'tanda':'tandas'}</span></summary>
+<dl class="dinfo"><div><dt>Última</dt><dd>${fdate(a[0].fecha)}</dd></div><div><dt>Kart habitual</dt><dd>#${esc(topOf(a,'kart'))}</dd></div><div><dt>Tipo</dt><dd>${esc(topOf(a,'tipo'))}</dd></div><div><dt>Motor</dt><dd>${esc(topOf(a,'motor'))}</dd></div></dl>
 <ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span>${x.pista?`<span>${esc(x.pista)}</span>`:''}<span class="mut">${esc(x.tipo)} · ${esc(x.motor)}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
 :'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
@@ -140,22 +185,22 @@ $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<opt
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(desc);
 $('#cnt').textContent='· '+rows.length;
 $('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="9" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
-$('#dls').innerHTML=dl('dlp',[...D.map(d=>d.n),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
+$('#dls').innerHTML=dl('dlp',S.map(x=>x.piloto))+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
 if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,kart:parseInt(x.kart,10)||0})))});
-const rows=(await api('?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre')).map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
-S=[...rows,...S.filter(x=>x.p&&!ids.has(x.id)&&!sent.has(x.id))];saveS(S);
+const[rows0,pf]=await Promise.all([api(COLS),getPerfiles()]),rows=rows0.map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
+S=[...rows,...S.filter(x=>x.p&&!ids.has(x.id)&&!sent.has(x.id))];saveS(S);P=pf;lsSet(PK,P);
 setSt('ok',`Guardado en la nube · ${S.length} ${S.length===1?'sesión':'sesiones'}`)}
-catch(e){setSt('err',`Sin conexión con la base de datos (${e.message}). Las sesiones quedan en este dispositivo y se suben solas cuando vuelva la conexión.`)}
-busy=false;draw();if(again){again=false;sync()}}
-draw();if(CLOUD)sync();else local();
+catch(e){if(!AUTH){location.reload();return}setSt('err',`Sin conexión con la base de datos (${e.message}). Las sesiones quedan en este dispositivo y se suben solas cuando vuelva la conexión.`)}
+busy=false;drawP();draw();if(again){again=false;sync()}}
+drawP();draw();if(CLOUD)sync();else setSt('warn','Guardadas solo en este navegador. Para que queden guardadas siempre, conectá la base de datos (pasos en LEEME.txt).');
 addEventListener('online',sync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});setInterval(()=>{if(!document.hidden)sync()},60000);
 $('#dv').addEventListener('toggle',e=>{const n=e.target.dataset.n;if(n!==undefined)e.target.open?open.add(n):open.delete(n)},true);
 const fin=$('#fa'),fnl=$('#fn'),fdef=fnl.textContent;
 fin.onchange=()=>{const fl=fin.files[0];fnl.textContent=fl?`${fl.name} · ${fsize(fl.size)}`:fdef;fnl.parentElement.classList.toggle('has',!!fl)};
-$('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)).trim());
+$('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
 if(!x.piloto||!x.pista||!x.tipo||!x.motor)return;const fl=fin.files[0],btn=$('#gs');
 if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
 if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
@@ -172,9 +217,56 @@ $('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x
 if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
 if(CLOUD&&x.archivo)stor(x.archivo,{method:'DELETE'}).catch(()=>{});
 S=S.filter(s=>s.id!==x.id);saveS(S);$('#msg').textContent='Sesión borrada.';draw()};
-$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Pista','Kart','Tipo de kart','Motor','Archivo'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.pista||'',x.kart,x.tipo,x.motor,x.archivo&&CLOUD?furl(x):''])];
+$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Pista','Kart','Tipo de kart','Motor','Archivo'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.pista||'',x.kart,x.tipo,x.motor,x.archivo_nombre||''])];
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv'}));a.download='sesiones-psdata.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
+/* Drivers: perfil de cada piloto y cuentas (administrador) */
+function perfilHTML(nombre,rows){const a=rows.filter(x=>x.piloto===nombre).sort(desc);
+if(!a.length)return`<h2 class="pn">${esc(nombre)}</h2><p class="mut">Todavía no hay tandas cargadas. Cuando el administrador cargue una sesión con tu nombre, aparece acá sola.</p>`;
+const dias={};a.forEach(x=>(dias[x.fecha]=dias[x.fecha]||[]).push(x));const fechas=Object.keys(dias).sort().reverse();
+const st=(k,v)=>`<div class="st"><div class="big">${v}</div><div class="mut">${k}</div></div>`;
+return`<h2 class="pn">${esc(nombre)}</h2><div class="stats">${st('tandas',a.length)}${st(fechas.length===1?'día en pista':'días en pista',fechas.length)}${st('kart habitual','#'+esc(topOf(a,'kart')))}${st('última',fdate(a[0].fecha).slice(0,5))}</div>
+<div class="mut hab">Pista habitual: <b>${esc(topOf(a,'pista'))}</b> · Tipo: <b>${esc(topOf(a,'tipo'))}</b> · Motor: <b>${esc(topOf(a,'motor'))}</b></div>
+${fechas.map(f=>{const t=dias[f].slice().sort((p,q)=>p.hora.localeCompare(q.hora));return`<section class="dia"><h3>${flong(f)} <span class="mut">· ${t.length} ${t.length===1?'tanda':'tandas'}</span></h3>
+<ol class="tandas">${t.map((x,i)=>`<li><b>Tanda ${i+1} · ${esc(x.hora)}</b><span>${x.pista?esc(x.pista)+' · ':''}kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}</span>${flink(x,'📎 Descargar archivo')}</li>`).join('')}</ol></section>`}).join('')}`}
+async function vDr(v){
+if(!CLOUD){v.innerHTML='<div class="card"><p>Para usar cuentas de pilotos hace falta conectar la base de datos (pasos en LEEME.txt).</p></div>';return}
+if(!AUTH)return gate(v,'Ingresá a tu perfil','Usá el usuario y la contraseña que te dio tu entrenador.',()=>vDr(v));
+await whoami();if(!AUTH)return vDr(v);
+const me=AUTH.perfil,admin=me.rol==='admin';let S=lsGet(SK,[]).filter(x=>!x.p),P=lsGet(PK,[]),ver=admin?lsGet('psdata-ver',''):me.nombre,stamp='';
+v.innerHTML=ubar()+(admin?`<div class="dad"><div class="stack"><form class="card col" id="fc" autocomplete="off"><h2>Nuevo driver</h2>
+<label>Nombre del piloto<input name="n" list="dln" required placeholder="Como lo cargás en Sesiones"></label>
+<label>Usuario<input name="u" required autocapitalize="none" autocorrect="off" spellcheck="false" pattern="[a-zA-Z0-9._\\-]{3,30}" title="De 3 a 30 letras, números, punto, guion o guion bajo" placeholder="Ej: tomas"></label>
+<label>Contraseña<span class="pw"><input name="c" required minlength="6" autocomplete="off" placeholder="Mínimo 6 caracteres"><button type="button" class="ghost" id="gen">Generar</button></span></label>
+<button class="cta" type="submit">Crear cuenta</button><div class="mut" id="cm" role="status"></div></form>
+<div class="card col"><h2>Drivers <span class="mut" id="pc"></span></h2><div id="pl"></div></div></div>
+<div class="card col" id="pf"></div></div><datalist id="dln"></datalist>`:`<div class="card col solo" id="pf"></div>`)+`<p class="mut upd" id="up"></p>`;bindUbar();
+const drawPf=()=>{const el=$('#pf');if(admin&&!ver){el.innerHTML='<h2>Perfil</h2><p class="mut">Tocá un driver de la lista para ver su perfil tal como lo ve él.</p>';return}el.innerHTML=perfilHTML(ver,S)};
+const drawList=()=>{if(!admin)return;const cnt=n=>S.filter(x=>x.piloto===n).length,ps=P.filter(p=>p.rol==='piloto'),acc=new Set(P.map(p=>p.nombre));
+$('#pc').textContent='· '+ps.length;
+$('#pl').innerHTML=(ps.length?ps.map(p=>`<div class="acc${p.nombre===ver?' on':''}"><button type="button" class="an" data-ver="${esc(p.nombre)}"><b>${esc(p.nombre)}</b><span class="mut">@${esc(p.usuario)} · ${cnt(p.nombre)} ${cnt(p.nombre)===1?'tanda':'tandas'}</span></button>
+<button type="button" class="ghost sm" data-pw="${p.id}" data-n="${esc(p.nombre)}">Contraseña</button><button type="button" class="del" data-rm="${p.id}" data-n="${esc(p.nombre)}" aria-label="Borrar la cuenta de ${esc(p.nombre)}">✕</button></div>`).join(''):'<p class="mut">Todavía no creaste ninguna cuenta.</p>')
++(()=>{const sin=[...new Set(S.map(x=>x.piloto))].filter(n=>!acc.has(n));return sin.length?`<p class="mut sin">Con sesiones pero sin cuenta: ${sin.map(n=>`<button type="button" class="chipb" data-pre="${esc(n)}">${esc(n)}</button>`).join(' ')}</p>`:''})();
+$('#dln').innerHTML=[...new Set(S.map(x=>x.piloto))].filter(n=>!acc.has(n)).map(n=>`<option value="${esc(n)}">`).join('')};
+async function load(){try{const[r,pf]=await Promise.all([api(COLS),admin?getPerfiles():Promise.resolve(P)]);S=r.map(norm);if(admin){P=pf;lsSet(PK,P);lsSet(SK,S)}
+const d=new Date();stamp=`Actualizado a las ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}. Se actualiza solo.`}
+catch(e){if(!AUTH){location.reload();return}stamp='Sin conexión: mostrando lo último guardado.'}
+$('#up').textContent=stamp;drawList();drawPf()}
+drawList();drawPf();load();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});setInterval(()=>{if(!document.hidden)load()},60000);addEventListener('online',load);
+if(!admin)return;
+const cm=$('#cm');
+$('#gen').onclick=()=>{const c='abcdefghjkmnpqrstuvwxyz23456789',r=crypto.getRandomValues(new Uint8Array(8));$('#fc').c.value=[...r].map(x=>c[x%c.length]).join('')};
+$('#fc').onsubmit=async e=>{e.preventDefault();const f=e.target,n=f.n.value.trim(),u=f.u.value.trim().toLowerCase(),c=f.c.value,b=f.querySelector('.cta');b.disabled=true;cm.textContent='Creando cuenta…';
+try{await rpc('crear_usuario',{p_usuario:u,p_clave:c,p_nombre:n,p_rol:'piloto'});cm.innerHTML=`Cuenta creada. Pasale a <b>${esc(n)}</b>: usuario <b>${esc(u)}</b> · contraseña <b>${esc(c)}</b>`;f.reset();ver=n;lsSet('psdata-ver',n);await load()}
+catch(err){cm.textContent='No se pudo crear: '+err.message}b.disabled=false};
+$('#pl').onclick=async e=>{const t=e.target.closest('button');if(!t)return;
+if(t.dataset.ver!==undefined){ver=t.dataset.ver;lsSet('psdata-ver',ver);drawList();drawPf();if(innerWidth<900)$('#pf').scrollIntoView({behavior:'smooth'});return}
+if(t.dataset.pre!==undefined){$('#fc').n.value=t.dataset.pre;$('#fc').u.value=slug(t.dataset.pre).toLowerCase();$('#fc').u.focus();return}
+if(t.dataset.pw){const c=prompt(`Nueva contraseña para ${t.dataset.n} (mínimo 6 caracteres):`);if(c==null)return;
+try{await rpc('cambiar_clave',{p_id:t.dataset.pw,p_clave:c});cm.innerHTML=`Contraseña de <b>${esc(t.dataset.n)}</b> cambiada a <b>${esc(c)}</b>.`}catch(err){cm.textContent='No se pudo cambiar: '+err.message}return}
+if(t.dataset.rm){if(!confirm(`¿Borrar la cuenta de ${t.dataset.n}? Ya no va a poder entrar. Sus sesiones no se borran.`))return;
+try{await rpc('eliminar_usuario',{p_id:t.dataset.rm});cm.textContent=`Cuenta de ${t.dataset.n} borrada.`;if(ver===t.dataset.n){ver='';lsSet('psdata-ver','')}await load()}catch(err){cm.textContent='No se pudo borrar: '+err.message}}}}
 const pg=document.body.dataset.page;
-const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,l:vL,r:vR,s:vS}[pg];
+const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,l:vL,r:vR,s:vS,d:vDr}[pg];
 const view=()=>{stop();fn($('#view'))};
 if(fn&&$('#view'))view();

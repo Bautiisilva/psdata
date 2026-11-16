@@ -42,3 +42,5 @@ notify pgrst, 'reload schema';
 -- PISTA (agregado después)
 alter table public.sesiones add column if not exists pista text;
 notify pgrst, 'reload schema';
+
+-- CUENTAS (agregado después): ver cuentas.sql
