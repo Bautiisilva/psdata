@@ -93,17 +93,27 @@ else if((m=t.match(/^(\d{1,2})\.(\d{2})\.(\d{1,3})$/)))s=+m[2]<60?(+m[1])*60+(+m
 else if((m=t.match(/^(\d+(?:\.\d+)?)(?:s|seg)?$/)))s=+m[1];
 return s>5&&s<600?Math.round(s*1000)/1000:NaN};
 /* Lectura de tiempos del CSV de Race Studio (MyChron / AiM) */
-function lapsFromCSV(txt){const lines=String(txt).replace(/^\ufeff/,'').split(/\r?\n/).slice(0,400);if(!lines.length)return null;
+const MESN={jan:1,january:1,ene:1,enero:1,feb:2,february:2,febrero:2,mar:3,march:3,marzo:3,apr:4,april:4,abr:4,abril:4,may:5,mayo:5,jun:6,june:6,junio:6,jul:7,july:7,julio:7,aug:8,august:8,ago:8,agosto:8,sep:9,sept:9,september:9,septiembre:9,setiembre:9,oct:10,october:10,octubre:10,nov:11,november:11,noviembre:11,dec:12,december:12,dic:12,diciembre:12};
+const p2=n=>String(n).padStart(2,'0');
+function csvFecha(t){t=String(t||'').trim().toLowerCase();if(!t)return null;let m,y,mo,d;
+if((m=t.match(/(\d{4})-(\d{1,2})-(\d{1,2})/))){y=+m[1];mo=+m[2];d=+m[3]}
+else if((m=t.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/))){let a=+m[1],b=+m[2];y=+m[3];if(y<100)y+=2000;if(b>12){mo=a;d=b}else{d=a;mo=b}}
+else{const w=t.replace(/[,.]/g,' ').split(/\s+/).filter(Boolean);for(const x of w){if(MESN[x])mo=MESN[x];else if(/^\d{4}$/.test(x))y=+x;else if(/^\d{1,2}$/.test(x)&&!d)d=+x}}
+if(!(y>2000&&mo>=1&&mo<=12&&d>=1&&d<=31))return null;return`${y}-${p2(mo)}-${p2(d)}`}
+function csvHora(t){const m=String(t||'').trim().toLowerCase().match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?$/);if(!m)return null;let h=+m[1];const pm=m[3]&&m[3][0]==='p',am=m[3]&&m[3][0]==='a';if(pm&&h<12)h+=12;if(am&&h===12)h=0;return h<24&&+m[2]<60?`${p2(h)}:${m[2]}`:null}
+function lapsFromCSV(txt){const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/).slice(0,400);if(!lines.length)return null;
 const h=lines.find(l=>l.trim())||'',d=(h.split(';').length>h.split(',').length)?';':',';
-const cells=l=>l.split(d).map(c=>c.trim().replace(/^"|"$/g,'').trim());
+const cells=l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}else if(ch==='"')q=true;else if(ch===d){out.push(cur.trim());cur=''}else cur+=ch}out.push(cur.trim());return out};
 const row=keys=>{for(const l of lines){const c=cells(l);if(keys.includes((c[0]||'').toLowerCase()))return c.slice(1).filter(x=>x!=='')}return null};
 const toks=a=>a.join(' ').split(d===';'?/[\s;]+/:/[\s,]+/).filter(Boolean).map(t=>d===';'?t.replace(',','.'):t);
 const tsec=t=>{const m=t.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);return m?(+m[1])*60+(+m[2]):/^\d+(\.\d+)?$/.test(t)?+t:NaN};
 let laps=[];const bm=row(['beacon markers']);
 if(bm){const m=toks(bm).map(tsec).filter(x=>!isNaN(x));for(let i=1;i<m.length;i++)laps.push(m[i]-m[i-1])}
 if(!laps.length){const st=row(['segment times','lap times']);if(st){const t=toks(st).map(tsec).filter(x=>!isNaN(x));laps=t.length>=3?t.slice(1,-1):t}}
-laps=laps.map(x=>Math.round(x*1000)/1000).filter(x=>x>5&&x<600);if(!laps.length)return null;
-let bi=0;laps.forEach((x,i)=>{if(x<laps[bi])bi=i});return{laps,best:laps[bi],bestIdx:bi}}
+laps=laps.map(x=>Math.round(x*1000)/1000).filter(x=>x>5&&x<600);
+const fr=row(['date','fecha']),hr=row(['time','hora']),fecha=fr?csvFecha(fr.join(d===','?', ':' ')):null,hora=hr?csvHora(hr[0]):null;
+if(!laps.length&&!fecha&&!hora)return null;
+let bi=0;laps.forEach((x,i)=>{if(x<laps[bi])bi=i});return{laps,best:laps.length?laps[bi]:null,bestIdx:bi,fecha,hora}}
 const fmtLap=s=>{if(s==null||isNaN(s))return'—';const m=Math.floor(s/60),r=(s-m*60).toFixed(3);return m?m+':'+r.padStart(6,'0'):r};
 const normN=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 const lev=(a,b)=>{const m=a.length,n=b.length;if(Math.abs(m-n)>2)return 9;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]};
@@ -218,7 +228,9 @@ $('#fs').mv.onblur=e=>{const v=parseLap(e.target.value);if(v!=null&&!isNaN(v))e.
 $('#fs').mv.oninput=()=>{LAPS=null;const ci=$('#csvi');if(ci.classList.contains('ok')){ci.textContent='';ci.className='mut csvi'}};
 fin.onchange=async()=>{const fl=fin.files[0];fnl.textContent=fl?`${fl.name} · ${fsize(fl.size)}`:fdef;fnl.parentElement.classList.toggle('has',!!fl);LAPS=null;const ci=$('#csvi');ci.textContent='';ci.className='mut csvi';if(!fl)return;
 if(fl.size>MAXF)return;let r=null;try{r=lapsFromCSV(await fl.slice(0,2*1024*1024).text())}catch(e){}
-if(r){LAPS=r.laps;$('#fs').mv.value=fmtLap(r.best);ci.className='mut csvi ok';ci.textContent=`Leído del archivo: ${r.laps.length} ${r.laps.length===1?'vuelta':'vueltas'}, la mejor fue la ${r.bestIdx+1}ª con ${fmtLap(r.best)}.`}
+if(r){const fs=$('#fs'),partes=[];if(r.fecha){fs.fecha.value=r.fecha;partes.push('fecha '+fdate(r.fecha))}if(r.hora){fs.hora.value=r.hora;partes.push('hora '+r.hora)}
+if(r.laps.length){LAPS=r.laps;fs.mv.value=fmtLap(r.best);partes.unshift(`${r.laps.length} ${r.laps.length===1?'vuelta':'vueltas'}, la mejor fue la ${r.bestIdx+1}ª con ${fmtLap(r.best)}`)}
+if(r.fecha&&typeof sugT==='function')sugT();ci.className='mut csvi '+(r.laps.length?'ok':'warn');ci.textContent='Leído del archivo: '+partes.join(' · ')+'.'+(r.laps.length?'':' No encontré tiempos de vuelta: escribí la mejor vuelta a mano.')}
 else{ci.className='mut csvi warn';ci.textContent=/\.csv$/i.test(fl.name)?'No encontré tiempos de vuelta en este CSV. Escribí la mejor vuelta a mano.':'Este archivo no es un CSV: no puedo leer los tiempos. Exportalo como CSV desde Race Studio 3 o escribí la mejor vuelta a mano.'}};
 $('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1,creado:new Date().toISOString()};['piloto','fecha','hora','tanda','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
 if(!x.piloto||!x.tanda||!x.pista||!x.tipo||!x.motor)return;x.tanda=+x.tanda;if(CLOUD&&!known().acc.includes(x.piloto)&&sugg(x.piloto)&&okNew!==x.piloto){updHint();$('#msg').textContent='Revisá el nombre del piloto antes de guardar.';e.target.piloto.focus();return}const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila en segundos (49.123) o en minutos y segundos (1:05.300).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
