@@ -331,6 +331,75 @@ const d=new Date();stamp=`Actualizado a las ${String(d.getHours()).padStart(2,'0
 catch(e){if(!AUTH){location.reload();return}stamp='Sin conexión: mostrando lo último guardado.'}draw()}
 $('#rp').onchange=e=>{fP=e.target.value;lsSet('psdata-rank-pista',fP);fD='';draw()};$('#rt').onchange=e=>{fT=e.target.value;lsSet('psdata-rank-tipo',fT);fD='';draw()};$('#rd').onchange=e=>{fD=e.target.value;draw()};
 draw();load();document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});setInterval(()=>{if(!document.hidden)load()},60000);addEventListener('online',load)}
+/* Herramientas de telemetría compartidas */
+function telLaps(TD){const T=TD.T,m=TD.markers,out=[];if(m.length>=2){for(let k=0;k+1<m.length;k++){const a=T.findIndex(t=>t>=m[k]);let b=T.findIndex(t=>t>=m[k+1]);if(b<0)b=T.length;if(a>=0&&b-a>5)out.push({n:k+1,a,b,t:m[k+1]-m[k]})}}
+if(!out.length)out.push({n:0,a:0,b:T.length,t:T[T.length-1]-T[0]});return out}
+const telBest=L=>L.reduce((p,q)=>q.n&&(!p.n||q.t<p.t)?q:p,L[0]);
+function telOrigin(TD){const ii=TD.LA.map((_,i)=>i).filter(i=>TD.ok[i]);return[ii.reduce((s,i)=>s+TD.LA[i],0)/ii.length,ii.reduce((s,i)=>s+TD.LO[i],0)/ii.length]}
+const telXY=(la,lo,O)=>{const k=Math.cos(O[0]*Math.PI/180);return[(lo-O[1])*k*111320,-(la-O[0])*110540]};
+function lapTrace(TD,lap,N=600){const a=lap.a,b=lap.b,T=TD.T;let D=[];
+if(!isNaN(TD.DI[a])&&!isNaN(TD.DI[b-1])&&TD.DI[b-1]>TD.DI[a])for(let i=a;i<b;i++)D.push(TD.DI[i]-TD.DI[a]);
+else{const O=telOrigin(TD);let acc=0,prev=null;for(let i=a;i<b;i++){const p=TD.ok[i]?telXY(TD.LA[i],TD.LO[i],O):prev;if(prev&&p)acc+=Math.hypot(p[0]-prev[0],p[1]-prev[1]);D.push(acc);prev=p}}
+const len=D[D.length-1]||1,o={t:[],v:[],la:[],lo:[],len,time:lap.t};let j=0;
+for(let s=0;s<=N;s++){const d=s/N*len;while(j<D.length-2&&D[j+1]<d)j++;const d0=D[j],d1=D[j+1]??d0,f=d1>d0?Math.min(1,Math.max(0,(d-d0)/(d1-d0))):0,i=a+j,i2=Math.min(b-1,i+1),L=(x,y)=>x+(y-x)*f;
+o.t.push(L(T[i],T[i2])-T[a]);let v=L(TD.V[i],TD.V[i2]);if(isNaN(v))v=(D[j+1]-D[j])/((T[i2]-T[i])||1)*3.6;o.v.push(v);o.la.push(L(TD.LA[i],TD.LA[i2]));o.lo.push(L(TD.LO[i],TD.LO[i2]))}
+const k=lap.t/(o.t[N]||1);o.t=o.t.map(x=>x*k);return o}
+/* Comparación de dos pilotos (o dos tandas) con sus CSV reales */
+async function vCmp(v){
+const AC='#4DA3FF',BC='#FF8A3D',NS=10,cache={};let S=[],sel={},timer=null;
+v.innerHTML='<div class="card"><p class="mut">Cargando sesiones…</p></div>';
+const loadList=async()=>{S=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc)};
+try{await loadList()}catch(e){v.innerHTML='<div class="card"><p class="mut">No se pudieron cargar las sesiones. Probá recargar la página.</p></div>';return}
+if(!S.length){v.innerHTML='<div class="card"><p>Cuando cargues sesiones con su CSV de la MyChron (en Sesiones), acá vas a poder comparar dos pilotos, o dos tandas del mismo piloto, sector por sector.</p></div>';return}
+sel.A=S[0].id;sel.B=(S.find(x=>x.piloto!==S[0].piloto&&x.pista===S[0].pista)||S.find(x=>x.piloto!==S[0].piloto)||S.find(x=>x.id!==S[0].id)||S[0]).id;
+const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?'Tanda '+x.tanda:'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
+v.innerHTML=`<div class="two cmpsel">${['A','B'].map(k=>`<div class="card side"><div class="sidet"><i class="chip" style="background:${k==='A'?AC:BC}"></i>Piloto ${k}</div><label>Piloto<select id="cp-${k}"></select></label><label>Sesión <span class="opt">(fecha · tanda · vuelta · pista)</span><select id="cs-${k}"></select></label></div>`).join('')}</div>
+<div class="card chartc"><div class="mut" id="cm-msg"></div><div id="cm-chart"></div><div class="read" id="cm-read"></div></div>
+<div class="card mapc"><div class="mut">Mapa por sectores: cada sector va del color del piloto que fue más rápido ahí</div><div id="cm-map"></div></div>
+<div class="card"><div id="cm-sec"></div></div>`;
+const pil=()=>[...new Set(S.map(x=>x.piloto))].sort((a,b)=>a.localeCompare(b));
+function fill(k){if(!S.some(x=>x.id===sel[k]))sel[k]=S[0].id;const cur=S.find(x=>x.id===sel[k]);
+$('#cp-'+k).innerHTML=pil().map(p=>`<option${p===cur.piloto?' selected':''}>${esc(p)}</option>`).join('');
+$('#cs-'+k).innerHTML=S.filter(x=>x.piloto===cur.piloto).map(x=>`<option value="${esc(x.id)}"${x.id===cur.id?' selected':''}>${esc(lbl(x))}</option>`).join('')}
+['A','B'].forEach(k=>{$('#cp-'+k).onchange=e=>{sel[k]=S.find(x=>x.piloto===e.target.value).id;fill(k);run()};$('#cs-'+k).onchange=e=>{sel[k]=e.target.value;run()}});
+async function tel(id){if(cache[id])return cache[id];const x=S.find(s=>s.id===id);const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});
+const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);const td=parseTelemetry(await r.text());if(td.error)throw new Error(td.error);return cache[id]=td}
+let A,B,TA,TB,O,run_id=0;
+async function run(){const my=++run_id,xa=S.find(x=>x.id===sel.A),xb=S.find(x=>x.id===sel.B);$('#cm-msg').textContent='Bajando los CSV…';
+try{const[ta,tb]=await Promise.all([tel(sel.A),tel(sel.B)]);if(my!==run_id)return;const la=telBest(telLaps(ta)),lb=telBest(telLaps(tb));
+A=lapTrace(ta,la);B=lapTrace(tb,lb);O=telOrigin(ta);TA={x:xa,lap:la};TB={x:xb,lap:lb};const same=xa.piloto===xb.piloto,tag=x=>same?`${x.piloto} T${x.tanda||'?'}${xa.id===xb.id?(x===xa?' (A)':' (B)'):''}`:x.piloto;TA.x={...xa,piloto:tag(xa)};TB.x={...xb,piloto:tag(xb)};
+const nm=(t,k)=>`${esc(t.x.piloto)}${t.lap.n?` (vuelta ${t.lap.n}`:' ('}${t.lap.n?', ':''}${fmtLap(t.lap.t)})`;
+$('#cm-msg').innerHTML=`Mejor vuelta de cada sesión: <b style="color:${AC}">${nm(TA)}</b> contra <b style="color:${BC}">${nm(TB)}</b>.${xa.pista&&xb.pista&&xa.pista!==xb.pista?' <span class="warnt">Ojo: son pistas distintas.</span>':''}`;
+draw()}catch(e){if(my!==run_id)return;$('#cm-msg').textContent='No se pudo comparar: '+e.message;['#cm-chart','#cm-map','#cm-sec','#cm-read'].forEach(s=>$(s).innerHTML='')}}
+function draw(){const N=A.t.length-1,dl=A.t.map((t,i)=>B.t[i]-t),m=Math.max(.1,Math.max(...dl.map(Math.abs))*1.2),vs=[...A.v,...B.v].filter(x=>!isNaN(x)),v0=Math.floor(Math.min(...vs)/10)*10,v1=Math.ceil(Math.max(...vs)/10)*10||10;
+const X=i=>44+i/N*680,Y=s=>10+(v1-s)/((v1-v0)||1)*170,Z=d=>250-d/m*36;
+const line=(o,c)=>`<polyline fill="none" stroke="${c}" stroke-width="2.2" points="${o.v.map((s,i)=>X(i).toFixed(1)+','+Y(s).toFixed(1)).join(' ')}"/>`;
+let g='';for(let k=0;k<=4;k++){const s=v0+(v1-v0)*k/4;g+=`<line x1="44" x2="724" y1="${Y(s)}" y2="${Y(s)}" stroke="var(--line)"/><text x="0" y="${Y(s)+4}">${Math.round(s)}</text>`}
+for(let k=1;k<NS;k++)g+=`<line x1="${X(k/NS*N)}" x2="${X(k/NS*N)}" y1="10" y2="180" stroke="var(--line)" stroke-dasharray="3 4"/>`;
+for(let k=0;k<NS;k++)g+=`<text x="${X((k+.5)/NS*N)-4}" y="196" class="sn">${k+1}</text>`;
+$('#cm-chart').innerHTML=`<svg id="cm-svg" class="chart" viewBox="0 0 740 300" role="img" aria-label="Velocidad de los dos pilotos y diferencia de tiempo">${g}${line(A,AC)}${line(B,BC)}
+<text x="44" y="210">Diferencia de tiempo: arriba, ${esc(TA.x.piloto)} va adelante</text><line x1="44" x2="724" y1="250" y2="250" stroke="var(--line)"/>
+<polyline fill="none" stroke="var(--ink)" stroke-width="2" points="${dl.map((d,i)=>X(i).toFixed(1)+','+Z(d).toFixed(1)).join(' ')}"/><line id="cm-cur" y1="6" y2="292" stroke="var(--mv)" stroke-width="2"/></svg>`;
+// mapa por sectores
+const PA=A.la.map((la,i)=>telXY(la,A.lo[i],O)),PB=B.la.map((la,i)=>telXY(la,B.lo[i],O)),xs=PA.map(p=>p[0]),ys=PA.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.08,s=Math.max(x1-x0,y1-y0)/100;
+const sec=[];for(let k=0;k<NS;k++){const i0=Math.round(k/NS*N),i1=Math.round((k+1)/NS*N);sec.push({k,i0,i1,a:A.t[i1]-A.t[i0],b:B.t[i1]-B.t[i0]})}
+let path='';sec.forEach(q=>{const c=q.a<=q.b?AC:BC;path+=`<polyline fill="none" stroke="${c}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" points="${PA.slice(q.i0,q.i1+1).map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}"/>`;
+const pm=PA[Math.round((q.i0+q.i1)/2)];path+=`<text x="${pm[0].toFixed(1)}" y="${pm[1].toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="secn" dy="${(s*-2.2).toFixed(1)}">${q.k+1}</text>`});
+const p0=PA[0];
+$('#cm-map').innerHTML=`<svg viewBox="${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}" class="gsvg cmmap" role="img" aria-label="Mapa por sectores"><path d="M${PA.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}" fill="none" stroke="var(--line)" stroke-width="${(s*2.8).toFixed(2)}" stroke-linejoin="round"/>${path}
+<circle cx="${p0[0].toFixed(1)}" cy="${p0[1].toFixed(1)}" r="${(s*.9).toFixed(2)}" fill="none" stroke="var(--ink)" stroke-width="${(s*.4).toFixed(2)}"/><circle id="cm-db" r="${(s*1.5).toFixed(2)}" fill="${BC}" stroke="var(--surf)" stroke-width="${(s*.45).toFixed(2)}"/><circle id="cm-da" r="${(s*1.5).toFixed(2)}" fill="${AC}" stroke="var(--surf)" stroke-width="${(s*.45).toFixed(2)}"/></svg>
+<div class="gleg mut"><span class="lg" style="background:${AC}"></span>${esc(TA.x.piloto)} más rápido<span class="lg" style="background:${BC}"></span>${esc(TB.x.piloto)} más rápido</div>`;
+const tot=[A.time,B.time];
+$('#cm-sec').innerHTML=`<table class="db sect"><thead><tr><th>Sector</th><th style="color:${AC}">${esc(TA.x.piloto)}</th><th style="color:${BC}">${esc(TB.x.piloto)}</th><th>Dif.</th></tr></thead><tbody>${sec.map(q=>{const w=q.a<=q.b;return`<tr><td>${q.k+1}</td><td class="${w?'win':''}" style="${w?'color:'+AC:''}">${q.a.toFixed(3)}</td><td class="${w?'':'win'}" style="${w?'':'color:'+BC}">${q.b.toFixed(3)}</td><td class="mut">${(q.b-q.a>=0?'+':'−')+Math.abs(q.b-q.a).toFixed(3)}</td></tr>`}).join('')}
+<tr class="tot"><td>Vuelta</td><td>${fmtLap(tot[0])}</td><td>${fmtLap(tot[1])}</td><td class="mut">${(tot[1]-tot[0]>=0?'+':'−')+Math.abs(tot[1]-tot[0]).toFixed(3)}</td></tr></tbody></table><p class="mut sm">Dif.: positivo = ${esc(TA.x.piloto)} más rápido en ese sector.</p>`;
+const sc=i=>{const x=X(i);$('#cm-cur').setAttribute('x1',x);$('#cm-cur').setAttribute('x2',x);[['#cm-da',PA[i]],['#cm-db',PB[i]]].forEach(([id,p])=>{const e=$(id);if(e&&p){e.setAttribute('cx',p[0]);e.setAttribute('cy',p[1])}});
+const d=dl[i];$('#cm-read').textContent=`${Math.round(i/N*A.len)} m · ${TA.x.piloto} ${Math.round(A.v[i])} km/h · ${TB.x.piloto} ${Math.round(B.v[i])} km/h · ${d>=0?TB.x.piloto:TA.x.piloto} ${d>=0?'+':'+'}${Math.abs(d).toFixed(3)} s`};
+const svg=$('#cm-svg'),mv=e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*740;sc(Math.max(0,Math.min(N,Math.round((x-44)/680*N))))};svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',mv);
+const map=$('#cm-map svg');map.addEventListener('pointerdown',e=>{const r=map.getBoundingClientRect(),vb=map.viewBox.baseVal,k=Math.max(vb.width/r.width,vb.height/r.height),ox=vb.x+(vb.width-r.width*k)/2,oy=vb.y+(vb.height-r.height*k)/2,x=ox+(e.clientX-r.left)*k,y=oy+(e.clientY-r.top)*k;let bi=0,bd=1e18;PA.forEach((p,i)=>{const dd=(p[0]-x)**2+(p[1]-y)**2;if(dd<bd){bd=dd;bi=i}});sc(bi)});
+sc(Math.round(N*.1))}
+fill('A');fill('B');run();
+const refresh=async()=>{if(document.hidden)return;const ids=S.map(x=>x.id).join();try{await loadList()}catch(e){return}if(S.map(x=>x.id).join()===ids)return;if(document.activeElement&&/^c[ps]-/.test(document.activeElement.id||''))return;fill('A');fill('B')};
+setInterval(refresh,60000);document.addEventListener('visibilitychange',refresh)}
 /* GPS de la tanda: CSV real de la MyChron (Race Studio) */
 function parseTelemetry(txt){
 const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/),d=csvDelim(txt);
@@ -360,11 +429,10 @@ el.innerHTML=`<section class="card col gpsc"><div class="head"><h2>GPS de la tan
 const msg=t=>{$('#gs-msg').textContent=t||''};let TD=null,lap=null,chJ=null,cur=0;
 msg(CLOUD&&AUTH?'Elegí una sesión guardada con su CSV, o abrí un CSV de la compu.':'Abrí un CSV exportado de la MyChron. Si ingresás con tu usuario (en Drivers), también podés elegir tus sesiones guardadas.');
 const vcol=(v,a,b)=>{const t=Math.max(0,Math.min(1,(v-a)/((b-a)||1)));return`rgb(${Math.round(228+(45-228)*t)},${Math.round(56+(212-56)*t)},${Math.round(74+(191-74)*t)})`};
-function laps(){const T=TD.T,m=TD.markers,out=[];if(m.length>=2){for(let k=0;k+1<m.length;k++){const a=T.findIndex(t=>t>=m[k]);let b=T.findIndex(t=>t>=m[k+1]);if(b<0)b=T.length;if(a>=0&&b-a>5)out.push({n:k+1,a,b,t:m[k+1]-m[k]})}}
-if(!out.length)out.push({n:0,a:0,b:T.length,t:T[T.length-1]-T[0]});return out}
+const laps=()=>telLaps(TD);
 let L=[];
 function load(txt,nombre){const r=parseTelemetry(txt);if(r.error){$('#gs-wrap').hidden=true;$('#gs-sel').hidden=true;msg(r.error);return}
-TD=r;L=laps();const best=L.reduce((p,q)=>q.n&&(!p.n||q.t<p.t)?q:p,L[0]);lap=best;
+TD=r;L=laps();const best=telBest(L);lap=best;
 $('#gs-lap').innerHTML=L.map((x,i)=>`<option value="${i}"${x===best?' selected':''}>${x.n?`Vuelta ${x.n} · ${fmtLap(x.t)}${x===best&&L.length>1?' (mejor)':''}`:'Toda la sesión'}</option>`).join('');
 const sp=TD.chans.find(c=>c.name===TD.speedCol);chJ=sp?sp.j:(TD.chans[0]||{}).j;
 $('#gs-ch').innerHTML=TD.chans.map(c=>`<option value="${c.j}"${c.j===chJ?' selected':''}>${esc(c.name)}${c.unit?' ('+esc(c.unit)+')':''}</option>`).join('');
@@ -402,7 +470,8 @@ sel.innerHTML='<option value="">Elegí una sesión…</option>'+rows.map(x=>`<op
 sel.onchange=async()=>{const x=rows.find(r=>r.id===sel.value);if(!x)return;msg('Bajando el CSV de '+x.piloto+'…');try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});
 const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);load(await r.text(),`${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}`)}catch(err){msg('No se pudo bajar el archivo: '+err.message)}}}catch(e){}})()}}
 const pg=document.body.dataset.page;
-const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,r:vR,s:vS,d:vDr}[pg];
+const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:v=>CLOUD&&AUTH?vCmp(v):vA(v),r:vR,s:vS,d:vDr}[pg];
 const view=()=>{stop();fn($('#view'))};
 if(fn&&$('#view'))view();
 if(pg==='a'&&$('#gpsv'))vGPS($('#gpsv'));
+if(pg==='a'&&!(CLOUD&&AUTH)){const h=document.querySelector('.demo');if(h)h.insertAdjacentHTML('beforeend',' <span class="mut">(datos de ejemplo · ingresá en Drivers para comparar tus sesiones)</span>')}
