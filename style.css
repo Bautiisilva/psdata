@@ -154,3 +154,4 @@ button.file:disabled{opacity:.6;cursor:wait}
 .sm{font-size:13px;margin:-4px 0 8px}
 .tl{color:var(--acc);font-weight:600}
 @media(min-width:900px){body:has(.rk){max-width:1100px}.rk{grid-template-columns:1fr 1fr;align-items:start}}
+.csvi{margin:-4px 0 10px;font-size:13px}.csvi:empty{display:none}.csvi.ok{color:var(--acc)}.csvi.warn{color:#F2C14E}

@@ -80,12 +80,24 @@ const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
 const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'],MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const flong=d=>{const[y,m,dd]=d.split('-').map(Number),w=new Date(y,m-1,dd).getDay();return`${DIAS[w][0].toUpperCase()+DIAS[w].slice(1)} ${dd} de ${MESES[m-1]} de ${y}`};
 const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
-const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null});
-const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta';
+const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null,vueltas:Array.isArray(x.vueltas)?x.vueltas.map(Number):null});
+const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta,vueltas';
 const BK='archivos',MAXF=50*1024*1024;
 const slug=t=>String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'archivo';
 const fsize=n=>n<1048576?Math.max(1,Math.round(n/1024))+' KB':(n/1048576).toFixed(1)+' MB';
 const parseLap=t=>{t=String(t||'').trim().replace(',','.');if(!t)return null;let m=t.match(/^(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/),s=m?(+m[1])*60+(+m[2]):/^\d+(\.\d+)?$/.test(t)?+t:NaN;return s>5&&s<600?Math.round(s*1000)/1000:NaN};
+/* Lectura de tiempos del CSV de Race Studio (MyChron / AiM) */
+function lapsFromCSV(txt){const lines=String(txt).replace(/^\ufeff/,'').split(/\r?\n/).slice(0,400);if(!lines.length)return null;
+const h=lines.find(l=>l.trim())||'',d=(h.split(';').length>h.split(',').length)?';':',';
+const cells=l=>l.split(d).map(c=>c.trim().replace(/^"|"$/g,'').trim());
+const row=keys=>{for(const l of lines){const c=cells(l);if(keys.includes((c[0]||'').toLowerCase()))return c.slice(1).filter(x=>x!=='')}return null};
+const toks=a=>a.join(' ').split(d===';'?/[\s;]+/:/[\s,]+/).filter(Boolean).map(t=>d===';'?t.replace(',','.'):t);
+const tsec=t=>{const m=t.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);return m?(+m[1])*60+(+m[2]):/^\d+(\.\d+)?$/.test(t)?+t:NaN};
+let laps=[];const bm=row(['beacon markers']);
+if(bm){const m=toks(bm).map(tsec).filter(x=>!isNaN(x));for(let i=1;i<m.length;i++)laps.push(m[i]-m[i-1])}
+if(!laps.length){const st=row(['segment times','lap times']);if(st){const t=toks(st).map(tsec).filter(x=>!isNaN(x));laps=t.length>=3?t.slice(1,-1):t}}
+laps=laps.map(x=>Math.round(x*1000)/1000).filter(x=>x>5&&x<600);if(!laps.length)return null;
+let bi=0;laps.forEach((x,i)=>{if(x<laps[bi])bi=i});return{laps,best:laps[bi],bestIdx:bi}}
 const fmtLap=s=>{if(s==null||isNaN(s))return'—';const m=Math.floor(s/60),r=(s-m*60).toFixed(3);return m?m+':'+r.padStart(6,'0'):r};
 const topOf=(a,k)=>{const c=new Map();a.forEach(x=>{if(x[k])c.set(x[k],(c.get(x[k])||0)+1)});const t=[...c].sort((p,q)=>q[1]-p[1])[0];return t?t[0]:'—'};
 /* conexión y sesión de usuario */
@@ -142,7 +154,7 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label>
 <label>Tipo de kart${sel('tipo',TIPOS,'Elegí el tipo de kart')}</label>
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
-<label>Mejor vuelta <span class="opt">(para el ranking)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 0:49.123"></label>
+<label>Mejor vuelta <span class="opt">(se completa sola con el CSV)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 0:49.123"></label><div class="mut csvi" id="csvi"></div>
 <label class="drop">Archivo del logger <span class="opt">(opcional)</span><input name="archivo" type="file" id="fa"><span class="fn" id="fn">Tocá para elegir el archivo exportado (MyChron, AiM…)</span></label>
 <button class="cta" type="submit" id="gs">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
 <div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
@@ -161,7 +173,7 @@ const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(
 $('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc);
 return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary><i class="chip" style="background:var(--acc)"></i><span class="dn">${esc(n)}</span>${CLOUD&&!acc.has(n)?'<span class="nocc" title="Este nombre no tiene cuenta en Drivers">sin cuenta</span>':''}<span class="dc">${a.length} ${a.length===1?'tanda':'tandas'}</span></summary>
 <dl class="dinfo"><div><dt>Última</dt><dd>${fdate(a[0].fecha)}</dd></div><div><dt>Kart habitual</dt><dd>#${esc(topOf(a,'kart'))}</dd></div><div><dt>Tipo</dt><dd>${esc(topOf(a,'tipo'))}</dd></div><div><dt>Motor</dt><dd>${esc(topOf(a,'motor'))}</dd></div></dl>
-<ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span>${x.pista?`<span>${esc(x.pista)}</span>`:''}<span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta '+fmtLap(x.mejor_vuelta):''}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
+<ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span>${x.pista?`<span>${esc(x.pista)}</span>`:''}<span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta '+fmtLap(x.mejor_vuelta):''}${x.vueltas&&x.vueltas.length?' · '+x.vueltas.length+' vueltas':''}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
 :'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
@@ -172,7 +184,7 @@ $('#dls').innerHTML=dl('dlp',S.map(x=>x.piloto))+dl('dlm',[...MOTORES,...S.map(x
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
-if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?x.mejor_vuelta:null,kart:parseInt(x.kart,10)||0})))});
+if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?x.mejor_vuelta:null,vueltas:Array.isArray(x.vueltas)?x.vueltas:null,kart:parseInt(x.kart,10)||0})))});
 const[rows0,pf]=await Promise.all([api(COLS),getPerfiles()]),rows=rows0.map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
 S=[...rows,...S.filter(x=>x.p&&!ids.has(x.id)&&!sent.has(x.id))];saveS(S);P=pf;lsSet(PK,P);
 setSt('ok',`Guardado en la nube · ${S.length} ${S.length===1?'sesión':'sesiones'}`)}
@@ -182,9 +194,13 @@ drawP();draw();if(CLOUD)sync();else setSt('warn','Guardadas solo en este navegad
 addEventListener('online',sync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});setInterval(()=>{if(!document.hidden)sync()},60000);
 $('#dv').addEventListener('toggle',e=>{const n=e.target.dataset.n;if(n!==undefined)e.target.open?open.add(n):open.delete(n)},true);
 const fin=$('#fa'),fnl=$('#fn'),fdef=fnl.textContent;
-fin.onchange=()=>{const fl=fin.files[0];fnl.textContent=fl?`${fl.name} · ${fsize(fl.size)}`:fdef;fnl.parentElement.classList.toggle('has',!!fl)};
+let LAPS=null;
+fin.onchange=async()=>{const fl=fin.files[0];fnl.textContent=fl?`${fl.name} · ${fsize(fl.size)}`:fdef;fnl.parentElement.classList.toggle('has',!!fl);LAPS=null;const ci=$('#csvi');ci.textContent='';ci.className='mut csvi';if(!fl)return;
+if(fl.size>MAXF)return;let r=null;try{r=lapsFromCSV(await fl.slice(0,2*1024*1024).text())}catch(e){}
+if(r){LAPS=r.laps;$('#fs').mv.value=fmtLap(r.best);ci.className='mut csvi ok';ci.textContent=`Leído del archivo: ${r.laps.length} ${r.laps.length===1?'vuelta':'vueltas'}, la mejor fue la ${r.bestIdx+1}ª con ${fmtLap(r.best)}.`}
+else{ci.className='mut csvi warn';ci.textContent=/\.csv$/i.test(fl.name)?'No encontré tiempos de vuelta en este CSV. Escribí la mejor vuelta a mano.':'Este archivo no es un CSV: no puedo leer los tiempos. Exportalo como CSV desde Race Studio 3 o escribí la mejor vuelta a mano.'}};
 $('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
-if(!x.piloto||!x.pista||!x.tipo||!x.motor)return;const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila como 49.123 o 0:49.123 (segundos con milésimas).';e.target.mv.focus();return}x.mejor_vuelta=mv;const fl=fin.files[0],btn=$('#gs');
+if(!x.piloto||!x.pista||!x.tipo||!x.motor)return;const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila como 49.123 o 0:49.123 (segundos con milésimas).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
 if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
 if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
 const m=fl.name.match(/\.([A-Za-z0-9]{1,8})$/),ext=m?'.'+m[1].toLowerCase():'';
@@ -211,7 +227,7 @@ const cb=a.filter(x=>x.mejor_vuelta!=null).sort((p,q)=>p.mejor_vuelta-q.mejor_vu
 return`<h2 class="pn">${esc(nombre)}</h2><div class="stats">${st('tandas',a.length)}${st(fechas.length===1?'día en pista':'días en pista',fechas.length)}${st(cb?'mejor vuelta · '+esc(cb.pista||''):'mejor vuelta',cb?fmtLap(cb.mejor_vuelta):'—')}${st('kart habitual','#'+esc(topOf(a,'kart')))}</div>
 <div class="mut hab">Última sesión: <b>${fdate(a[0].fecha)}</b> · Pista habitual: <b>${esc(topOf(a,'pista'))}</b> · Tipo: <b>${esc(topOf(a,'tipo'))}</b> · Motor: <b>${esc(topOf(a,'motor'))}</b></div>
 ${fechas.map(f=>{const t=dias[f].slice().sort((p,q)=>p.hora.localeCompare(q.hora));return`<section class="dia"><h3>${flong(f)} <span class="mut">· ${t.length} ${t.length===1?'tanda':'tandas'}</span></h3>
-<ol class="tandas">${t.map((x,i)=>`<li><b>Tanda ${i+1} · ${esc(x.hora)}</b><span>${x.pista?esc(x.pista)+' · ':''}kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta <b class="tl">'+fmtLap(x.mejor_vuelta)+'</b>':''}</span>${flink(x,'📎 Descargar archivo')}</li>`).join('')}</ol></section>`}).join('')}`}
+<ol class="tandas">${t.map((x,i)=>`<li><b>Tanda ${i+1} · ${esc(x.hora)}</b><span>${x.pista?esc(x.pista)+' · ':''}kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta <b class="tl">'+fmtLap(x.mejor_vuelta)+'</b>':''}${x.vueltas&&x.vueltas.length?' · '+x.vueltas.length+' vueltas':''}</span>${flink(x,'📎 Descargar archivo')}</li>`).join('')}</ol></section>`}).join('')}`}
 async function vDr(v){
 if(!CLOUD){v.innerHTML='<div class="card"><p>Para usar cuentas de pilotos hace falta conectar la base de datos (pasos en LEEME.txt).</p></div>';return}
 if(!AUTH)return gate(v,'Ingresá a tu perfil','Usá el usuario y la contraseña que te dio tu entrenador.',()=>vDr(v));

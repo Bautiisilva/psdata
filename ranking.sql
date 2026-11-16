@@ -2,6 +2,8 @@
 alter table public.sesiones add column if not exists mejor_vuelta numeric(8,3)
   check (mejor_vuelta is null or (mejor_vuelta > 5 and mejor_vuelta < 600));
 
+alter table public.sesiones add column if not exists vueltas numeric(8,3)[];
+
 -- Cualquier usuario con login ve nombres y tiempos para el ranking (nada de archivos ni otros datos)
 create or replace function public.ranking_datos()
 returns table (piloto text, fecha date, pista text, tipo text, mejor_vuelta numeric)
