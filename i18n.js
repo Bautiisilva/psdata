@@ -167,6 +167,15 @@
     'Camino por la curva: de afuera hacia adentro y otra vez afuera': 'Line through the corner: outside to inside and back outside',
     'Frená más cerca de la curva': 'Brake closer to the corner', 'Frená un poco antes': 'Brake a bit earlier',
     'A fondo al salir de la curva': 'Full throttle out of the corner', 'Elegí una marca para frenar siempre en el mismo lugar': 'Pick a mark to always brake at the same spot',
+    'Vuelta teórica': 'Theoretical lap', 'Teórica': 'Theoretical', 'vuelta teórica': 'theoretical lap', 'vueltas': 'laps',
+    'Juntando los mejores microsectores de todas las vueltas de una tanda: la vuelta más rápida que el piloto ya hizo por partes.': 'Putting together the best microsectors from every lap of a run: the fastest lap the driver has already done in pieces.',
+    'Microsector': 'Microsector', 'Mejor tiempo': 'Best time', 'En la vuelta': 'On lap', 'En su mejor vuelta': 'On their best lap', 'Total': 'Total',
+    'Calculando con el CSV…': 'Calculating from the CSV…',
+    'Cuando guardes una sesión con el CSV de la MyChron, acá aparece su vuelta teórica.': 'Once you save a session with the MyChron CSV, its theoretical lap shows up here.',
+    'Este CSV no trae vueltas completas para calcular la vuelta teórica.': 'This CSV has no complete laps to calculate the theoretical lap.',
+    'Microsectores configurados en la MyChron.': 'Microsectors set up on the MyChron.',
+    'El CSV no trae los splits de la MyChron: la vuelta se dividió en 10 tramos iguales.': 'The CSV doesn’t include the MyChron splits: the lap was split into 10 equal parts.',
+    'El CSV no trae microsectores ni GPS: la vuelta teórica es la mejor vuelta.': 'The CSV has no microsectors or GPS: the theoretical lap is the best lap.',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -212,7 +221,8 @@
     [/^Usar (.+)$/, 'Use $1'],
     [/^Tanda (\d+) · ([\d:]+)$/, 'Run $1 · $2'],
     [/^Tanda (\d+)$/, 'Run $1'],
-    [/ · Tanda (\d+) · /g, ' · Run $1 · '], [/ · tanda (\d+)/g, ' · run $1'], [/ · sin tanda · /g, ' · no run · '], [/ · sin pista$/, ' · no track'],
+    [/ · Tanda (\d+) · /g, ' · Run $1 · '],
+    [/ · Tanda (\d+)$/, ' · Run $1'], [/ · tanda (\d+)/g, ' · run $1'], [/ · sin tanda · /g, ' · no run · '], [/ · sin pista$/, ' · no track'],
     [/^· (\d+) pilotos?$/, function (m, n) { return '· ' + n + ' ' + pl(n, 'driver', 'drivers'); }],
     [/^· (\d+) tandas?$/, function (m, n) { return '· ' + n + ' ' + pl(n, 'run', 'runs'); }],
     [/^(\d+) tandas?$/, function (m, n) { return n + ' ' + pl(n, 'run', 'runs'); }],
@@ -231,6 +241,7 @@
     [/^Comparando contra la mejor vuelta de (.+): ([\d:.]+) \((.+)\)\.$/, 'Comparing against $1’s best lap: $2 ($3).'],
     [/^No se pudo (analizar|comparar): (.*)$/, function (m, v, e) { return 'Could not ' + (v === 'analizar' ? 'analyze' : 'compare') + ': ' + e; }],
     [/^No se pudo bajar el archivo: (.*)$/, 'Could not download the file: $1'],
+    [/^No se pudo calcular: (.*)$/, 'Could not calculate: $1'],
     [/ \(sugerido\)$/, ' (suggested)'],
     // Observaciones del Coach
     [/^Tu mejor vuelta fue la número (\d+): ([\d:.]+)\. ¡Ese es tu tiempo para mejorar!$/, 'Your best lap was number $1: $2. That’s the time to beat!'],
