@@ -164,8 +164,10 @@ button.file:disabled{opacity:.6;cursor:wait}
 .rank td:nth-child(2) .bdg{white-space:normal;max-width:100%;line-height:1.25;margin-left:0}
 .ses .db th,.ses .db td{text-align:center;vertical-align:middle}
 /* Mejor vuelta: siempre en violeta */
-.db .t,.rank .t,.tl,.st.mv .big{color:var(--mv)}
+.db .t,.tl,.st.mv .big{color:var(--mv)}
+.db.rank .t{color:var(--ink)}
+.db.rank tbody tr:first-child .t{color:var(--mv)}
 .tl{font-weight:600}
 .bdg.rec{background:var(--mv);color:#fff}
-.bdg.pb{border-color:var(--mv);color:var(--mv)}
+.bdg.pb{border-color:var(--acc);color:var(--acc)}
 .tandas b.tl{color:var(--mv);font-family:inherit;font-size:inherit}
