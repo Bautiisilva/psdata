@@ -79,9 +79,11 @@ const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
 const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'],MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const flong=d=>{const[y,m,dd]=d.split('-').map(Number),w=new Date(y,m-1,dd).getDay();return`${DIAS[w][0].toUpperCase()+DIAS[w].slice(1)} ${dd} de ${MESES[m-1]} de ${y}`};
+const tC=x=>{const t=Date.parse(x.creado||'');return isNaN(t)?0:t};
+const porCarga=(a,b)=>(tC(b)-tC(a))||(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
 const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)||((+b.tanda||0)-(+a.tanda||0));
-const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null,tanda:x.tanda!=null?Number(x.tanda):null,vueltas:Array.isArray(x.vueltas)?x.vueltas.map(Number):null});
-const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta,vueltas,tanda';
+const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null,tanda:x.tanda!=null?Number(x.tanda):null,creado:x.creado||null,vueltas:Array.isArray(x.vueltas)?x.vueltas.map(Number):null});
+const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta,vueltas,tanda,creado';
 const BK='archivos',MAXF=50*1024*1024;
 const slug=t=>String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'archivo';
 const fsize=n=>n<1048576?Math.max(1,Math.round(n/1024))+' KB':(n/1048576).toFixed(1)+' MB';
@@ -192,7 +194,7 @@ return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary
 :'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
-const rows=S.filter(x=>!filt||x.piloto===filt).sort(desc);
+const rows=S.filter(x=>!filt||x.piloto===filt).sort(porCarga);
 $('#cnt').textContent='· '+rows.length;
 $('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?x.tanda:'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="10" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
 $('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
@@ -218,7 +220,7 @@ fin.onchange=async()=>{const fl=fin.files[0];fnl.textContent=fl?`${fl.name} · $
 if(fl.size>MAXF)return;let r=null;try{r=lapsFromCSV(await fl.slice(0,2*1024*1024).text())}catch(e){}
 if(r){LAPS=r.laps;$('#fs').mv.value=fmtLap(r.best);ci.className='mut csvi ok';ci.textContent=`Leído del archivo: ${r.laps.length} ${r.laps.length===1?'vuelta':'vueltas'}, la mejor fue la ${r.bestIdx+1}ª con ${fmtLap(r.best)}.`}
 else{ci.className='mut csvi warn';ci.textContent=/\.csv$/i.test(fl.name)?'No encontré tiempos de vuelta en este CSV. Escribí la mejor vuelta a mano.':'Este archivo no es un CSV: no puedo leer los tiempos. Exportalo como CSV desde Race Studio 3 o escribí la mejor vuelta a mano.'}};
-$('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','tanda','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
+$('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1,creado:new Date().toISOString()};['piloto','fecha','hora','tanda','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
 if(!x.piloto||!x.tanda||!x.pista||!x.tipo||!x.motor)return;x.tanda=+x.tanda;if(CLOUD&&!known().acc.includes(x.piloto)&&sugg(x.piloto)&&okNew!==x.piloto){updHint();$('#msg').textContent='Revisá el nombre del piloto antes de guardar.';e.target.piloto.focus();return}const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila en segundos (49.123) o en minutos y segundos (1:05.300).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
 if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
 if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
