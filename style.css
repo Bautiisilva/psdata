@@ -194,3 +194,14 @@ body[data-page="h"] #view{max-width:980px;margin-inline:auto}
 .demo .mut{font:400 14px Barlow,sans-serif}
 [hidden]{display:none!important}
 @media(min-width:900px){.gwrap{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);align-items:center}}
+/* Comparación real */
+.side label{display:block;color:var(--mut);font-size:13px;margin-top:8px}
+.side select{margin-top:4px}
+.sidet{font:700 18px "Barlow Condensed",sans-serif}
+.warnt{color:#F2C14E}
+.sn{fill:var(--mut)}
+.secn{fill:var(--ink);font-family:"Barlow Condensed",sans-serif;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:var(--bg);stroke-width:.6px}
+.cmmap{width:100%;max-height:380px;touch-action:none;cursor:crosshair}
+.sect td,.sect th{text-align:center;padding:6px 4px}
+.sect td.win{font-weight:700}
+.sect tr.tot td{border-top:2px solid var(--line);font-weight:700}
