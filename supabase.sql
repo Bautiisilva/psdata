@@ -38,3 +38,7 @@ create policy "subir archivos" on storage.objects for insert to anon with check 
 create policy "borrar archivos" on storage.objects for delete to anon using (bucket_id = 'archivos');
 
 notify pgrst, 'reload schema';
+
+-- PISTA (agregado después)
+alter table public.sesiones add column if not exists pista text;
+notify pgrst, 'reload schema';
