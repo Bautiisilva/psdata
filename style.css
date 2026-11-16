@@ -162,3 +162,4 @@ button.file:disabled{opacity:.6;cursor:wait}
 .rank th:nth-child(1){width:30px}.rank th:nth-child(3){width:84px}.rank th:nth-child(4){width:64px}.rank th:nth-child(5){width:84px}
 .rank td:nth-child(2){overflow-wrap:anywhere}
 .rank td:nth-child(2) .bdg{white-space:normal;max-width:100%;line-height:1.25;margin-left:0}
+.ses .db th,.ses .db td{text-align:center;vertical-align:middle}
