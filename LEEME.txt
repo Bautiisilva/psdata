@@ -18,3 +18,4 @@ CUENTAS (Drivers)
 
 Nota: al cambiar app.js, style.css o config.js, actualizá el número ?v= en los .html para que los celulares bajen la versión nueva.
 11. Para el ranking, corré ranking.sql en el SQL Editor.
+12. Para el número de tanda, corré tanda.sql en el SQL Editor.
