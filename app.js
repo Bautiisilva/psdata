@@ -180,8 +180,7 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <div class="stack"><div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
 <div class="tools"><select id="fp" aria-label="Filtrar por piloto"></select><button type="button" class="ghost" id="csv">Exportar CSV</button></div></div>
 <div class="sync" id="sync" role="status"></div>
-<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th class="c">Tanda</th><th>Pista</th><th>Kart</th><th>Tipo</th><th>Mejor vuelta</th><th>Teórica</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
-<div class="card col teoc"><div class="head"><h2>Vuelta teórica</h2><select id="teo-s" aria-label="Tanda"></select></div><p class="mut sm">Juntando los mejores microsectores de todas las vueltas de una tanda: la vuelta más rápida que el piloto ya hizo por partes.</p><div id="teo-v"></div></div></div>
+<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th class="c">Tanda</th><th>Pista</th><th>Kart</th><th>Tipo</th><th>Mejor vuelta</th><th>Teórica</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div></div>
 <aside class="card col" aria-labelledby="dh"><h2 id="dh">Drivers sessions</h2><div id="dv"></div></aside></div>
 <div id="dls"></div>`;bindUbar();
 const setSt=(k,t)=>{const e=$('#sync');e.className='sync '+k;e.textContent=t};
@@ -211,7 +210,7 @@ const rows=S.filter(x=>!filt||x.piloto===filt).sort(porCarga);
 $('#cnt').textContent='· '+rows.length;
 $('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?x.tanda:'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td class="teo">${x.vuelta_teorica!=null?fmtLap(x.vuelta_teorica):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="11" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
 $('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
-drawD();drawTeoSel()};
+drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
 if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?x.mejor_vuelta:null,tanda:x.tanda!=null?+x.tanda:null,vuelta_teorica:x.vuelta_teorica!=null?x.vuelta_teorica:null,microsectores:x.microsectores||null,vueltas:Array.isArray(x.vueltas)?x.vueltas:null,kart:parseInt(x.kart,10)||0})))});
@@ -248,20 +247,6 @@ btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;try{if(/\.cs
 S.push(x);const ok=saveS(S);open.add(x.piloto);fin.value='';fin.onchange();e.target.mv.value='';tTouched=false;sugT();
 $('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':''}.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
-let teoId='',teoRun=0;
-function drawTeoSel(){const sel=$('#teo-s');if(!sel)return;const cs=S.filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)&&!x.p).sort(porCarga);
-if(!cs.length){sel.hidden=true;$('#teo-v').innerHTML='<p class="mut">Cuando guardes una sesión con el CSV de la MyChron, acá aparece su vuelta teórica.</p>';return}
-sel.hidden=false;if(!cs.some(x=>x.id===teoId)){teoId=cs[0].id;setTimeout(showTeo)}
-sel.innerHTML=cs.map(x=>`<option value="${esc(x.id)}"${x.id===teoId?' selected':''}>${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · Tanda '+x.tanda:''}</option>`).join('')}
-async function showTeo(){const my=++teoRun,x=S.find(s=>s.id===teoId),v=$('#teo-v');if(!x)return;let th=x.microsectores&&x.microsectores.s?x.microsectores:null;
-if(!th){v.innerHTML='<p class="mut">Calculando con el CSV…</p>';try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);th=teorica(await r.text())}catch(e){if(my===teoRun)v.innerHTML=`<p class="mut">No se pudo calcular: ${esc(e.message)}</p>`;return}
-if(my!==teoRun)return;if(!th){v.innerHTML='<p class="mut">Este CSV no trae vueltas completas para calcular la vuelta teórica.</p>';return}
-x.vuelta_teorica=th.teorica;x.microsectores=th;saveS(S);draw();api('?id=eq.'+encodeURIComponent(x.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({vuelta_teorica:th.teorica,microsectores:th})}).catch(()=>{})}
-if(my!==teoRun)return;const gan=th.mejor-th.teorica<0.0025?0:th.mejor-th.teorica,st=(k,val,c='')=>`<div class="st ${c}"><div class="big">${val}</div><div class="mut">${k}</div></div>`;
-const fuente={mychron:'Microsectores configurados en la MyChron.',tramos:'El CSV no trae los splits de la MyChron: la vuelta se dividió en 10 tramos iguales.',vueltas:'El CSV no trae microsectores ni GPS: la vuelta teórica es la mejor vuelta.'}[th.f]||'';
-v.innerHTML=`<div class="stats">${st('vuelta teórica',fmtLap(th.teorica),'teo')}${st('mejor vuelta (V'+th.mejorN+')',fmtLap(th.mejor),'mv')}${st('para ganar',gan.toFixed(3)+' s')}${st('vueltas',th.vueltas)}</div>
-${th.s.length>1?`<table class="db sect"><thead><tr><th>Microsector</th><th>Mejor tiempo</th><th>En la vuelta</th><th>En su mejor vuelta</th></tr></thead><tbody>${th.s.map((q,i)=>`<tr><td>${i+1}</td><td class="teo">${q[0].toFixed(3)}</td><td>${q[1]}</td><td class="mut">${q[2].toFixed(3)}${q[2]-q[0]>0.0005?` <span class="gn">+${(q[2]-q[0]).toFixed(3)}</span>`:''}</td></tr>`).join('')}<tr class="tot"><td>Total</td><td class="teo">${fmtLap(th.teorica)}</td><td></td><td class="mut">${fmtLap(th.mejor)}</td></tr></tbody></table>`:''}<p class="mut sm">${fuente}</p>`}
-$('#teo-s').onchange=e=>{teoId=e.target.value;showTeo()};
 $('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
 if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
 if(CLOUD&&x.archivo){$('#msg').textContent='Borrando archivo…';await stor(x.archivo,{method:'DELETE'}).catch(()=>{})}
@@ -539,6 +524,30 @@ if(!TD.error){const L=telLaps(TD).filter(l=>l.n);if(L.length){const NS=10,secs=L
 // 3) solo vueltas
 if(lapsB.length)return fin('vueltas',lapsB,lapsB.map(l=>[l.t]));
 return null}
+/* Vuelta teórica (Análisis): detalle por microsector de cada tanda con CSV */
+async function vTeo(el){
+el.innerHTML=`<section class="card col teoc"><div class="head"><h2>Vuelta teórica</h2><select id="teo-s" aria-label="Tanda" hidden></select></div><p class="mut sm">Juntando los mejores microsectores de todas las vueltas de una tanda: la vuelta más rápida que el piloto ya hizo por partes.</p><div id="teo-v"></div></section>`;
+const v=$('#teo-v'),sel=$('#teo-s');
+if(!CLOUD||!AUTH){v.innerHTML='<p class="mut">Ingresá con tu usuario (en Drivers) para ver la vuelta teórica de tus sesiones.</p>';return}
+let S=[],teoId='',run=0;const admin=AUTH.perfil&&AUTH.perfil.rol==='admin';
+const load=async()=>{S=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(porCarga)};
+const fill=()=>{if(!S.length){sel.hidden=true;v.innerHTML='<p class="mut">Cuando guardes una sesión con el CSV de la MyChron, acá aparece su vuelta teórica.</p>';return false}
+sel.hidden=false;if(!S.some(x=>x.id===teoId))teoId=S[0].id;
+sel.innerHTML=S.map(x=>`<option value="${esc(x.id)}"${x.id===teoId?' selected':''}>${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · Tanda '+x.tanda:''}</option>`).join('');return true};
+async function show(){const my=++run,x=S.find(s=>s.id===teoId);if(!x)return;let th=x.microsectores&&x.microsectores.s?x.microsectores:null;
+if(!th){v.innerHTML='<p class="mut">Calculando con el CSV…</p>';try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);th=teorica(await r.text())}catch(e){if(my===run)v.innerHTML=`<p class="mut">No se pudo calcular: ${esc(e.message)}</p>`;return}
+if(my!==run)return;if(!th){v.innerHTML='<p class="mut">Este CSV no trae vueltas completas para calcular la vuelta teórica.</p>';return}
+x.vuelta_teorica=th.teorica;x.microsectores=th;if(admin)api('?id=eq.'+encodeURIComponent(x.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({vuelta_teorica:th.teorica,microsectores:th})}).catch(()=>{})}
+if(my!==run)return;const gan=th.mejor-th.teorica<0.0025?0:th.mejor-th.teorica,st=(k,val,c='')=>`<div class="st ${c}"><div class="big">${val}</div><div class="mut">${k}</div></div>`;
+const fuente={mychron:'Microsectores configurados en la MyChron.',tramos:'El CSV no trae los splits de la MyChron: la vuelta se dividió en 10 tramos iguales.',vueltas:'El CSV no trae microsectores ni GPS: la vuelta teórica es la mejor vuelta.'}[th.f]||'';
+v.innerHTML=`<div class="stats">${st('vuelta teórica',fmtLap(th.teorica),'teo')}${st('mejor vuelta (V'+th.mejorN+')',fmtLap(th.mejor),'mv')}${st('para ganar',gan.toFixed(3)+' s')}${st('vueltas',th.vueltas)}</div>
+${th.s.length>1?`<table class="db sect"><thead><tr><th>Microsector</th><th>Mejor tiempo</th><th>En la vuelta</th><th>En su mejor vuelta</th></tr></thead><tbody>${th.s.map((q,i)=>`<tr><td>${i+1}</td><td class="teo">${q[0].toFixed(3)}</td><td>${q[1]}</td><td class="mut">${q[2].toFixed(3)}${q[2]-q[0]>0.0005?` <span class="gn">+${(q[2]-q[0]).toFixed(3)}</span>`:''}</td></tr>`).join('')}<tr class="tot"><td>Total</td><td class="teo">${fmtLap(th.teorica)}</td><td></td><td class="mut">${fmtLap(th.mejor)}</td></tr></tbody></table>`:''}<p class="mut sm">${fuente}</p>`}
+sel.onchange=e=>{teoId=e.target.value;show()};
+v.innerHTML='<p class="mut">Cargando sesiones…</p>';
+try{await load()}catch(e){v.innerHTML='<p class="mut">No se pudieron cargar las sesiones. Probá recargar la página.</p>';return}
+if(fill())show();
+const refresh=async()=>{if(document.hidden)return;const ids=S.map(x=>x.id).join();try{await load()}catch(e){return}if(S.map(x=>x.id).join()===ids)return;const had=teoId;if(fill()&&had!==teoId)show()};
+setInterval(refresh,60000);document.addEventListener('visibilitychange',refresh)}
 /* GPS de la tanda: CSV real de la MyChron (Race Studio) */
 function parseTelemetry(txt){
 const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/),d=csvDelim(txt);
@@ -613,4 +622,5 @@ const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:v=>CLOUD&&AUTH?vCmp(v):vA(v)
 const view=()=>{stop();fn($('#view'))};
 if(fn&&$('#view'))view();
 if(pg==='a'&&$('#gpsv'))vGPS($('#gpsv'));
+if(pg==='a'&&$('#teov'))vTeo($('#teov'));
 if(pg==='a'&&!(CLOUD&&AUTH)){const h=document.querySelector('.demo');if(h)h.insertAdjacentHTML('beforeend',' <span class="mut">(datos de ejemplo · ingresá en Drivers para comparar tus sesiones)</span>')}

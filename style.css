@@ -263,3 +263,4 @@ ol.tips .tipc::before{content:counter(tip);position:absolute;top:-6px;left:-6px;
 .teoc .sect{min-width:0}
 @media(min-width:900px){.ses{grid-template-columns:300px minmax(0,1fr)}}
 @media(min-width:1280px){.ses{grid-template-columns:300px minmax(0,1fr) 320px}}
+#teov .teoc{margin-bottom:16px}
