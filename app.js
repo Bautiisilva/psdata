@@ -86,7 +86,7 @@ function vR(v){const o=[...D.keys()].sort((a,b)=>D[b].pts-D[a].pts),mx=Math.max(
 v.innerHTML=`<div class="card"><table><tr><th>Piloto</th><th>Pts</th><th>Mejor vuelta</th><th>Regularidad</th></tr>${o.map((i,k)=>{const d=D[i];return`<tr><td style="padding:10px 4px"><b style="font:700 18px 'Barlow Condensed',sans-serif">${k+1}</b> <i class="chip" style="background:${d.c}"></i>${d.n}</td><td>${d.pts}</td><td style="font-family:'Barlow Condensed',sans-serif;font-size:17px">${fmt(d.best.time)}</td><td><div class="bar" title="σ ${d.sd.toFixed(3)} s"><i style="width:${100-d.sd/mx*70}%;background:${d.c}"></i></div></td></tr>`}).join('')}</table>
 <p class="mut">Regularidad: más barra, menos variación entre vueltas (se excluye la vuelta de salida).</p></div>`}
 /* Sesiones */
-const TIPOS=['Mini (6-8 años)','Cadete','Junior','Senior','Master','Alquiler / rental','Shifter (con cambios)'];
+const TIPOS=['Shifter','L206','Rotax Sr','Rotax Jr','K100 Sr','K100 Jr','DD2','Micro','Mini','Bambino'];
 const MOTORES=['60cc 2T','IAME X30 125cc','Rotax Max 125cc','Vortex 125cc','KZ 125cc (con cambios)','Honda GX 4T','Briggs & Stratton 4T','Eléctrico'];
 const SK='psdata-sesiones',CFG=window.PSDATA_DB||{},CLOUD=!!(CFG.url&&CFG.key);
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
@@ -107,7 +107,7 @@ v.innerHTML=`<div class="ses"><form class="card col" id="fs" autocomplete="off">
 <label>Piloto<input name="piloto" list="dlp" required placeholder="Elegí o escribí un nombre" value="${esc(lastOf('piloto'))}"></label>
 <div class="pair"><label>Fecha<input name="fecha" type="date" required value="${hoy}"></label><label>Hora de la sesión<input name="hora" type="time" required value="${hora}"></label></div>
 <label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label>
-<label>Tipo de kart<input name="tipo" list="dlt" required placeholder="Elegí o escribí" value="${esc(lastOf('tipo'))}"></label>
+<label>Tipo de kart<select name="tipo" required><option value="" disabled${TIPOS.includes(lastOf('tipo'))?'':' selected'}>Elegí el tipo de kart</option>${TIPOS.map(t=>`<option${t===lastOf('tipo')?' selected':''}>${t}</option>`).join('')}</select></label>
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
 <button class="cta" type="submit">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
 <div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
@@ -131,7 +131,7 @@ $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<opt
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(desc);
 $('#cnt').textContent='· '+rows.length;
 $('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="7" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
-$('#dls').innerHTML=dl('dlp',[...D.map(d=>d.n),...S.map(x=>x.piloto)])+dl('dlt',[...TIPOS,...S.map(x=>x.tipo)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
+$('#dls').innerHTML=dl('dlp',[...D.map(d=>d.n),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
