@@ -1,4 +1,4 @@
-:root{--bg:#050707;--surf:#111818;--ink:#E4F5F2;--mut:#8AA6A2;--line:#22302F;--acc:#2DD4BF;--acc-ink:#04110F;--best:#2DD4BF;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--mv:#9B30FF;--bg:#050707;--surf:#111818;--ink:#E4F5F2;--mut:#8AA6A2;--line:#22302F;--acc:#2DD4BF;--acc-ink:#04110F;--best:#2DD4BF;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 Barlow,system-ui,sans-serif;max-width:760px;margin-inline:auto;padding:0 14px 40px}
@@ -146,7 +146,7 @@ button.file:disabled{opacity:.6;cursor:wait}
 .rank td{padding:9px 4px;white-space:normal}
 .rank .pos{font:700 20px "Barlow Condensed",sans-serif;width:28px}
 .db .t,.rank .t{font:700 17px "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
-.rank tr:first-child .pos,.rank tr:first-child .t{color:var(--acc)}
+.rank tr:first-child .pos{color:var(--acc)}
 .rank tr.yo td{background:color-mix(in srgb,var(--acc) 10%,transparent)}
 .bdg{display:inline-block;font:500 11px Barlow,sans-serif;border-radius:10px;padding:1px 7px;margin-left:4px;vertical-align:1px;white-space:nowrap}
 .bdg.rec{background:var(--acc);color:var(--acc-ink)}
@@ -163,3 +163,9 @@ button.file:disabled{opacity:.6;cursor:wait}
 .rank td:nth-child(2){overflow-wrap:anywhere}
 .rank td:nth-child(2) .bdg{white-space:normal;max-width:100%;line-height:1.25;margin-left:0}
 .ses .db th,.ses .db td{text-align:center;vertical-align:middle}
+/* Mejor vuelta: siempre en violeta */
+.db .t,.rank .t,.tl,.st.mv .big{color:var(--mv)}
+.tl{font-weight:600}
+.bdg.rec{background:var(--mv);color:#fff}
+.bdg.pb{border-color:var(--mv);color:var(--mv)}
+.tandas b.tl{color:var(--mv);font-family:inherit;font-size:inherit}
