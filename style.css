@@ -2,7 +2,7 @@
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 Barlow,system-ui,sans-serif;max-width:1280px;margin-inline:auto;padding:0 14px 40px}
-.flag{height:10px;margin:0 -14px;background:repeating-conic-gradient(var(--acc) 0 25%,var(--bg) 0 50%) 0 0/20px 20px}
+.flag{height:10px;margin:0 -14px;background:var(--acc)}
 header{padding:14px 0 8px}
 h1{font:700 30px/1 "Barlow Condensed",Impact,sans-serif;margin:0;letter-spacing:.01em}
 .sub{color:var(--mut);font-size:14px;margin-top:4px}
