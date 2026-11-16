@@ -157,3 +157,8 @@ button.file:disabled{opacity:.6;cursor:wait}
 .csvi{margin:-4px 0 10px;font-size:13px}.csvi:empty{display:none}.csvi.ok{color:var(--acc)}.csvi.warn{color:#F2C14E}
 .phint{font-size:13px;margin-top:5px;min-height:0;color:var(--mut)}.phint:empty{display:none}.phint.ok{color:var(--acc)}.phint.warn{color:#F2C14E}.phint b{color:var(--ink)}.pbtn{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .db th.c,.db td.c{text-align:center}
+.cat+.cat{margin-top:16px}.cat h3{font:700 18px "Barlow Condensed",sans-serif;margin:0 0 4px;display:flex;align-items:baseline;gap:6px}.cat h3 .ct{background:var(--acc);color:var(--acc-ink);border-radius:6px;padding:1px 8px}.cat h3 .mut{font:400 13px Barlow,sans-serif}
+.rank{table-layout:fixed}
+.rank th:nth-child(1){width:30px}.rank th:nth-child(3){width:84px}.rank th:nth-child(4){width:64px}.rank th:nth-child(5){width:84px}
+.rank td:nth-child(2){overflow-wrap:anywhere}
+.rank td:nth-child(2) .bdg{white-space:normal;max-width:100%;line-height:1.25;margin-left:0}

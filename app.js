@@ -293,7 +293,7 @@ await whoami();if(!AUTH)return vR(v);
 const me=AUTH.perfil;let R=lsGet('psdata-rank',[]),fP=lsGet('psdata-rank-pista',''),fT=lsGet('psdata-rank-tipo',''),fD='',stamp='';
 v.innerHTML=ubar()+`<div class="card rf"><label>Pista<select id="rp"></select></label><label>Tipo de kart<select id="rt"></select></label></div>
 <div class="rk"><section class="card col"><div class="head"><h2>Ranking del día</h2><select id="rd" aria-label="Día"></select></div><div id="rday"></div></section>
-<section class="card col"><h2>Récords globales</h2><p class="mut sm">La mejor vuelta de cada piloto en esta pista. Si alguien la baja, se actualiza sola.</p><div id="rglo"></div></section></div><p class="mut upd" id="up"></p>`;bindUbar();
+<section class="card col"><h2>Récords globales</h2><p class="mut sm">La mejor vuelta de cada piloto en esta pista, separada por tipo de kart. Si alguien la baja, se actualiza sola.</p><div id="rglo"></div></section></div><p class="mut upd" id="up"></p>`;bindUbar();
 const opts=(el,list,cur,todas)=>{el.innerHTML=(todas?`<option value="">${todas}</option>`:'')+list.map(x=>`<option${x===cur?' selected':''}>${esc(x)}</option>`).join('')};
 const best=rows=>{const m=new Map();rows.forEach(x=>{const b=m.get(x.piloto);if(!b||x.mejor_vuelta<b.mejor_vuelta||(x.mejor_vuelta===b.mejor_vuelta&&x.fecha<b.fecha))m.set(x.piloto,x)});return[...m.values()].sort((a,b)=>a.mejor_vuelta-b.mejor_vuelta||a.fecha.localeCompare(b.fecha))};
 const tabla=(rows,extra)=>{if(!rows.length)return'<p class="mut">Todavía no hay tiempos cargados acá.</p>';const p1=rows[0].mejor_vuelta;
@@ -302,12 +302,14 @@ const draw=()=>{const pistas=[...new Set([...PISTAS,...R.map(x=>x.pista).filter(
 if(!pistas.includes(fP)){const c=new Map();R.forEach(x=>c.set(x.pista,(c.get(x.pista)||0)+1));fP=[...c].sort((a,b)=>b[1]-a[1]).map(x=>x[0]).find(Boolean)||pistas[0]}
 const enP=R.filter(x=>x.pista===fP),tipos=[...new Set(enP.map(x=>x.tipo))].sort();if(fT&&!tipos.includes(fT))fT='';
 opts($('#rp'),pistas,fP);opts($('#rt'),tipos,fT,'Todas');
-const F=enP.filter(x=>!fT||x.tipo===fT),G=best(F),rec=new Map(G.map(x=>[x.piloto,x]));
+const F=enP.filter(x=>!fT||x.tipo===fT),ordT=t=>{const i=TIPOS.indexOf(t);return i<0?99:i},cats=[...new Set(F.map(x=>x.tipo))].sort((p,q)=>ordT(p)-ordT(q)||String(p).localeCompare(q));
 const dias=[...new Set(F.map(x=>x.fecha))].sort().reverse();if(!dias.includes(fD))fD=dias[0]||'';
 $('#rd').innerHTML=dias.length?dias.map(d=>`<option value="${d}"${d===fD?' selected':''}>${flong(d)}</option>`).join(''):'<option>Sin días con tiempos</option>';$('#rd').disabled=!dias.length;
-const day=F.filter(x=>x.fecha===fD),cnt=n=>day.filter(x=>x.piloto===n).length;
-$('#rday').innerHTML=tabla(best(day),{h:'Tandas',c:x=>cnt(x.piloto),badge:(x,i)=>G[0]&&G[0].piloto===x.piloto&&G[0].fecha===fD&&G[0].mejor_vuelta===x.mejor_vuelta?' <span class="bdg rec">Récord de pista</span>':rec.get(x.piloto)&&rec.get(x.piloto).fecha===fD&&rec.get(x.piloto).mejor_vuelta===x.mejor_vuelta?' <span class="bdg pb">Mejor personal</span>':''});
-$('#rglo').innerHTML=tabla(G,{h:'Fecha',c:x=>fdate(x.fecha),badge:(x,i)=>i===0?' <span class="bdg rec">Récord</span>':''});$('#up').textContent=stamp};
+const day=F.filter(x=>x.fecha===fD),vacio='<p class="mut">Todavía no hay tiempos cargados acá.</p>';
+const sec=(t,n,html)=>`<div class="cat"><h3><span class="ct">${esc(t||'Sin tipo')}</span> <span class="mut">· ${n} ${n===1?'piloto':'pilotos'}</span></h3>${html}</div>`;
+$('#rday').innerHTML=cats.filter(t=>day.some(x=>x.tipo===t)).map(t=>{const Gt=best(F.filter(x=>x.tipo===t)),rec=new Map(Gt.map(x=>[x.piloto,x])),dt=day.filter(x=>x.tipo===t),bd=best(dt),cnt=n=>dt.filter(x=>x.piloto===n).length;
+return sec(t,bd.length,tabla(bd,{h:'Tandas',c:x=>cnt(x.piloto),badge:x=>Gt[0]&&Gt[0].piloto===x.piloto&&Gt[0].fecha===fD&&Gt[0].mejor_vuelta===x.mejor_vuelta?' <span class="bdg rec">Récord</span>':rec.get(x.piloto)&&rec.get(x.piloto).fecha===fD&&rec.get(x.piloto).mejor_vuelta===x.mejor_vuelta?' <span class="bdg pb">Mejor personal</span>':''}))}).join('')||vacio;
+$('#rglo').innerHTML=cats.map(t=>{const Gt=best(F.filter(x=>x.tipo===t));return sec(t,Gt.length,tabla(Gt,{h:'Fecha',c:x=>fdate(x.fecha),badge:(x,i)=>i===0?' <span class="bdg rec">Récord</span>':''}))}).join('')||vacio;$('#up').textContent=stamp};
 async function load(){try{R=(await rpc('ranking_datos',{})||[]).map(x=>({piloto:x.piloto,fecha:String(x.fecha).slice(0,10),pista:x.pista,tipo:x.tipo,mejor_vuelta:Number(x.mejor_vuelta)}));lsSet('psdata-rank',R);
 const d=new Date();stamp=`Actualizado a las ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}. Se actualiza solo.`}
 catch(e){if(!AUTH){location.reload();return}stamp='Sin conexión: mostrando lo último guardado.'}draw()}
