@@ -362,8 +362,7 @@ function fill(k){if(!S.some(x=>x.id===sel[k]))sel[k]=S[0].id;const cur=S.find(x=
 $('#cp-'+k).innerHTML=pil().map(p=>`<option${p===cur.piloto?' selected':''}>${esc(p)}</option>`).join('');
 $('#cs-'+k).innerHTML=S.filter(x=>x.piloto===cur.piloto).map(x=>`<option value="${esc(x.id)}"${x.id===cur.id?' selected':''}>${esc(lbl(x))}</option>`).join('')}
 ['A','B'].forEach(k=>{$('#cp-'+k).onchange=e=>{sel[k]=S.find(x=>x.piloto===e.target.value).id;fill(k);run()};$('#cs-'+k).onchange=e=>{sel[k]=e.target.value;run()}});
-async function tel(id){if(cache[id])return cache[id];const x=S.find(s=>s.id===id);const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});
-const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);const td=parseTelemetry(await r.text());if(td.error)throw new Error(td.error);return cache[id]=td}
+const tel=id=>telFetch(S.find(s=>s.id===id));
 let A,B,TA,TB,O,run_id=0;
 async function run(){const my=++run_id,xa=S.find(x=>x.id===sel.A),xb=S.find(x=>x.id===sel.B);$('#cm-msg').textContent='Bajando los CSV…';
 try{const[ta,tb]=await Promise.all([tel(sel.A),tel(sel.B)]);if(my!==run_id)return;const la=telBest(telLaps(ta)),lb=telBest(telLaps(tb));
@@ -399,6 +398,94 @@ const map=$('#cm-map svg');map.addEventListener('pointerdown',e=>{const r=map.ge
 sc(Math.round(N*.1))}
 fill('A');fill('B');run();
 const refresh=async()=>{if(document.hidden)return;const ids=S.map(x=>x.id).join();try{await loadList()}catch(e){return}if(S.map(x=>x.id).join()===ids)return;if(document.activeElement&&/^c[ps]-/.test(document.activeElement.id||''))return;fill('A');fill('B')};
+setInterval(refresh,60000);document.addEventListener('visibilitychange',refresh)}
+/* Telemetría guardada: descarga y caché compartidas */
+const TELC={};
+async function telFetch(x){if(TELC[x.id])return TELC[x.id];const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});
+const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);const td=parseTelemetry(await r.text());if(td.error)throw new Error(td.error);return TELC[x.id]=td}
+/* Coach: análisis de ingeniero a partir de la telemetría */
+const smoothA=(a,w)=>a.map((_,i)=>{let s=0,n=0;for(let j=i-w;j<=i+w;j++)if(a[j]!=null&&!isNaN(a[j])){s+=a[j];n++}return n?s/n:a[i]});
+function findCorners(tr){const N=tr.v.length-1,ds=tr.len/N,v=smoothA(tr.v,3),W=Math.max(2,Math.round(30/ds)),P=Math.round(120/ds),G=Math.round(40/ds),out=[];
+for(let i=1;i<N;i++){let m=true;for(let j=Math.max(0,i-W);j<=Math.min(N,i+W);j++)if(v[j]<v[i]){m=false;break}if(!m)continue;
+const b=Math.max(...v.slice(Math.max(0,i-P),i+1)),a=Math.max(...v.slice(i,Math.min(N,i+P)+1));if(b-v[i]>=5&&a-v[i]>=4){if(out.length&&i-out[out.length-1]<G){if(v[i]<v[out[out.length-1]])out[out.length-1]=i}else out.push(i)}}return out}
+function cornerM(tr,ia){const N=tr.v.length-1,ds=tr.len/N,v=smoothA(tr.v,2),w=Math.round(25/ds);let im=ia;for(let j=Math.max(0,ia-w);j<=Math.min(N,ia+w);j++)if(v[j]<v[im])im=j;
+const P=Math.round(150/ds),lo=Math.max(0,im-P);let ib=im;while(ib>lo&&v[ib-1]<=v[im]+1)ib--;while(ib>lo&&v[ib-1]>v[ib]+0.05)ib--;const ie=Math.min(N,im+Math.round(40/ds));return{im,ib,ie,vmin:v[im],vin:v[ib],vex:v[ie],freno:(im-ib)*ds}}
+function analizar(TD,ref){const L=telLaps(TD).filter(l=>l.n);if(!L.length)return{error:'No encontré vueltas completas en el CSV (faltan las marcas de vuelta).'};
+const best=telBest(L),tr=L.map(l=>({lap:l,tr:lapTrace(TD,l)})),B=tr.find(x=>x.lap===best).tr,N=B.v.length-1,ds=B.len/N;
+const lim=best.t*1.07,val=tr.filter(x=>x.lap.t<=lim),out_=tr.filter(x=>x.lap.t>lim);
+const NS=10,sec=[];for(let k=0;k<NS;k++){const i0=Math.round(k/NS*N),i1=Math.round((k+1)/NS*N),ts=val.map(x=>({n:x.lap.n,t:x.tr.t[i1]-x.tr.t[i0]}));const m=ts.reduce((p,q)=>q.t<p.t?q:p,ts[0]);sec.push({k,best:m.t,de:m.n,mine:B.t[i1]-B.t[i0]})}
+const ideal=sec.reduce((s,q)=>s+q.best,0);
+const tv=val.map(x=>x.lap.t),mean=tv.reduce((a,b)=>a+b,0)/tv.length,sd=Math.sqrt(tv.reduce((a,b)=>a+(b-mean)**2,0)/tv.length);
+const C=findCorners(B).map((ia,ci)=>{const mb=cornerM(B,ia),i1=Math.max(0,mb.ib-Math.round(20/ds)),i2=Math.min(N,mb.im+Math.round(60/ds)),tB=B.t[i2]-B.t[i1];
+const otros=val.filter(x=>x.lap!==best).map(x=>{const m=cornerM(x.tr,ia);return{...m,loss:(x.tr.t[i2]-x.tr.t[i1])-tB,n:x.lap.n}});
+let vsRef=null;if(ref){const m=cornerM(ref.tr,Math.round(ia/N*(ref.tr.v.length-1))),Nr=ref.tr.v.length-1,j1=Math.round(i1/N*Nr),j2=Math.round(i2/N*Nr);vsRef={...m,loss:tB-(ref.tr.t[j2]-ref.tr.t[j1])}}
+const avg=k=>otros.length?otros.reduce((s,o)=>s+o[k],0)/otros.length:null;
+return{n:ci+1,ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});
+return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref}}
+const r0=x=>Math.round(Math.abs(x)),r1=x=>Math.abs(x).toFixed(1);
+function causa(dF,dM,dE,quien){const p=[];
+if(dF>6)p.push(`frena ${r0(dF)} m antes de lo necesario`);else if(dF<-6)p.push(`frena ${r0(dF)} m más tarde y se pasa`);
+if(dM<-2&&!(dF<-6))p.push(`la velocidad mínima cae ${r1(dM)} km/h (sobrefrenada o línea muy cerrada)`);
+if(dM>2&&dE<-1.5)p.push(`entra ${r1(dM)} km/h más rápido pero sale ${r1(dE)} km/h más lento: compromete la salida`);
+else if(dE<-2)p.push(`sale ${r1(dE)} km/h más lento: acelera tarde o la línea no abre la salida`);
+return p.length?p.join('; '):'la diferencia está repartida en toda la curva (línea y suavidad)'}
+function observaciones(R,x,refx){const o=[],rec=[];
+const gIdeal=R.best.t-R.ideal;
+o.push({h:'Resumen',t:[`Mejor vuelta ${fmtLap(R.best.t)} (vuelta ${R.best.n} de ${R.laps.length}). Vuelta ideal combinando sus mejores sectores: ${fmtLap(R.ideal)} → ${gIdeal>0.0005?`hay ${gIdeal.toFixed(3)} s para ganar sin cambiar nada del kart.`:'su mejor vuelta ya junta sus mejores sectores.'}`,
+R.val>1?`Constancia: desvío de ${R.sd.toFixed(3)} s entre vueltas (promedio ${fmtLap(R.mean)}). ${R.sd<=0.25?'Muy buena regularidad.':R.sd<=0.5?'Regularidad aceptable; el objetivo es bajar de 0.25 s.':'Poca regularidad: primero hay que repetir la misma vuelta antes de buscar velocidad.'}`:'Hay una sola vuelta comparable: con más vueltas el análisis de constancia es más preciso.',
+R.fuera.length?`Vueltas fuera de ritmo (más de 7% lentas, tráfico o error): ${R.fuera.map(l=>l.n).join(', ')}. No se usan para los promedios.`:''].filter(Boolean)});
+const peor=R.C.filter(c=>c.otros.length).sort((a,b)=>b.avgLoss-a.avgLoss);
+peor.forEach(c=>{if(c.avgLoss>0.04)rec.push({g:c.avgLoss,t:`Curva ${c.n}: pierde en promedio ${c.avgLoss.toFixed(3)} s contra su mejor vuelta; ${causa(c.dFreno,c.dMin,c.dEx)}. Objetivo (su mejor vuelta): frenar a ${r0(c.mb.freno)} m del vértice, mínima ${r0(c.mb.vmin)} km/h, salida ${r0(c.mb.vex)} km/h.`})});
+if(R.ref)R.C.forEach(c=>{const v=c.vsRef;if(v&&v.loss>0.04)rec.push({g:v.loss,t:`Curva ${c.n} contra ${refx.piloto}: pierde ${v.loss.toFixed(3)} s; ${causa(c.mb.freno-v.freno,c.mb.vmin-v.vmin,c.mb.vex-v.vex)}. Referencia de ${refx.piloto}: frena a ${r0(v.freno)} m, mínima ${r0(v.vmin)} km/h, salida ${r0(v.vex)} km/h.`})});
+if(R.val>1&&R.sd>0.3)rec.push({g:R.mean-R.best.t,t:`Constancia: el promedio está ${(R.mean-R.best.t).toFixed(3)} s arriba de la mejor vuelta. Trabajar puntos de referencia fijos (cono, cordón, marca en el asfalto) para frenar siempre en el mismo lugar.`});
+const sv=R.sec.map(q=>({k:q.k+1,g:q.mine-q.best,de:q.de})).filter(q=>q.g>0.03).sort((a,b)=>b.g-a.g);
+if(sv.length)rec.push({g:sv[0].g*.6,t:`Sectores: en su mejor vuelta todavía pierde tiempo en ${sv.slice(0,3).map(q=>`el sector ${q.k} (${q.g.toFixed(3)} s, lo hizo mejor en la vuelta ${q.de})`).join(', ')}. Repetir lo que hizo en esas vueltas.`});
+rec.sort((a,b)=>b.g-a.g);
+o.unshift({h:'Lo más importante',ol:rec.slice(0,5).map(r=>r.t+` (≈ ${r.g.toFixed(2)} s)`),vacio:'No aparecen pérdidas claras: las vueltas son muy parejas. Para seguir mejorando, comparalo con un piloto más rápido de su categoría.'});
+o.push({h:'Curva por curva',ul:R.C.map(c=>`Curva ${c.n} (a ${c.dist} m de la largada): en la mejor vuelta frena a ${r0(c.mb.freno)} m del vértice, entra a ${r0(c.mb.vin)} km/h, mínima ${r0(c.mb.vmin)} km/h, sale a ${r0(c.mb.vex)} km/h.${c.otros.length?` Resto de las vueltas: ${c.avgLoss>=0?'pierde':'gana'} ${Math.abs(c.avgLoss).toFixed(3)} s en promedio.`:''}${c.vsRef?` Contra ${refx.piloto}: ${c.vsRef.loss>=0?'pierde':'gana'} ${Math.abs(c.vsRef.loss).toFixed(3)} s.`:''}`),vacio:'No se detectaron curvas claras en la velocidad de la mejor vuelta.'});
+o.push({h:'Cómo se calcula',t:['Las curvas se detectan donde la velocidad de la mejor vuelta baja y vuelve a subir. La frenada es la distancia entre el punto de máxima velocidad antes de la curva y el vértice. Las vueltas más de 7% lentas no cuentan para los promedios.']});
+return o}
+const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${t}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+t):[s.vacio]):[]),''])].join('\r\n');
+async function vCoach(v){
+if(!CLOUD){v.innerHTML='<div class="card"><p>Para el Coach hace falta conectar la base de datos.</p></div>';return}
+if(!AUTH)return gate(v,'Ingresá para ver el Coach','Usá tu usuario y contraseña de psData.',()=>vCoach(v));
+await whoami();if(!AUTH)return vCoach(v);
+v.innerHTML=ubar()+'<div class="card"><p class="mut">Cargando datos…</p></div>';bindUbar();
+let S=[];try{S=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc)}catch(e){v.innerHTML=ubar()+'<div class="card"><p class="mut">No se pudieron cargar las sesiones. Probá recargar.</p></div>';bindUbar();return}
+if(!S.length){v.innerHTML=ubar()+'<div class="card"><p>Todavía no hay sesiones con CSV. Cuando cargues una en Sesiones con el archivo de la MyChron, acá aparece con sus observaciones.</p></div>';bindUbar();return}
+let cur=lsGet('psdata-coach','');if(!S.some(x=>x.id===cur))cur=S[0].id;let refId='',open=new Set([S.find(x=>x.id===cur).piloto]),obsCache='';
+v.innerHTML=ubar()+`<div class="coach"><aside class="card col cdata"><h2>Datos</h2><p class="mut sm">Sesiones guardadas con su CSV, por piloto y día.</p><div id="co-tree"></div></aside>
+<section class="cmid"><div class="card col"><div class="head"><h2 id="co-tit">Sesión</h2></div><div class="mut" id="co-sub"></div><label class="refl">Comparar con <span class="opt">(opcional)</span><select id="co-ref"></select></label><div id="co-sum"></div></div>
+<div class="card col"><h2>Mapa de curvas</h2><p class="mut sm">Cada curva va del color de cuánto tiempo se pierde ahí.</p><div id="co-map"></div></div>
+<div class="card col"><h2>Vueltas</h2><div id="co-laps"></div></div></section>
+<aside class="card col cobs"><div class="head"><h2>📄 Observaciones</h2><button type="button" class="ghost" id="co-dl">Descargar</button></div><div id="co-obs" class="obs"></div></aside></div>`;bindUbar();
+const tree=()=>{const g={};S.forEach(x=>((g[x.piloto]=g[x.piloto]||{})[x.fecha]=g[x.piloto][x.fecha]||[]).push(x));
+$('#co-tree').innerHTML=Object.keys(g).sort((a,b)=>a.localeCompare(b)).map(p=>`<details class="cpil" data-p="${esc(p)}"${open.has(p)?' open':''}><summary>${esc(p)} <span class="mut">· ${Object.values(g[p]).flat().length}</span></summary>${Object.keys(g[p]).sort().reverse().map(f=>`<div class="cdia">${fdate(f)}</div>${g[p][f].sort((a,b)=>(a.tanda||0)-(b.tanda||0)).map(x=>`<button type="button" class="ctan${x.id===cur?' on':''}" data-id="${esc(x.id)}"><span>${x.tanda?'Tanda '+x.tanda:x.hora}</span><span class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):''}</span><span class="mut">${esc(x.pista||'')}</span></button>`).join('')}`).join('')}</details>`).join('')};
+$('#co-tree').addEventListener('toggle',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p!==undefined)e.target.open?open.add(p):open.delete(p)},true);
+$('#co-tree').onclick=e=>{const b=e.target.closest('.ctan');if(!b)return;cur=b.dataset.id;lsSet('psdata-coach',cur);refId='';tree();run();if(innerWidth<1100)$('#co-tit').scrollIntoView({behavior:'smooth'})};
+$('#co-ref').onchange=e=>{refId=e.target.value;run()};
+$('#co-dl').onclick=()=>{if(!obsCache)return;const x=S.find(s=>s.id===cur),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+obsCache],{type:'text/plain'}));a.download=`Observaciones - ${x.piloto} - ${x.fecha}${x.tanda?' - tanda '+x.tanda:''}.txt`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+let rid=0;
+async function run(){const my=++rid,x=S.find(s=>s.id===cur);$('#co-tit').textContent=x.piloto;$('#co-sub').textContent=lbl(x);
+const cands=S.filter(s=>s.id!==x.id&&(!x.pista||s.pista===x.pista));const sug=cands.filter(s=>s.piloto!==x.piloto&&s.tipo===x.tipo&&s.mejor_vuelta!=null&&(x.mejor_vuelta==null||s.mejor_vuelta<x.mejor_vuelta)).sort((a,b)=>a.mejor_vuelta-b.mejor_vuelta)[0];
+$('#co-ref').innerHTML='<option value="">Solo sus propias vueltas</option>'+cands.map(s=>`<option value="${esc(s.id)}"${s.id===refId?' selected':''}>${esc(s.piloto)} · ${esc(lbl(s))}${s===sug?' (sugerido)':''}</option>`).join('');
+['#co-sum','#co-map','#co-laps'].forEach(s=>$(s).innerHTML='');$('#co-obs').innerHTML='<p class="mut">Analizando la telemetría…</p>';obsCache='';
+try{const td=await telFetch(x);let ref=null,refx=null;if(refId){refx=S.find(s=>s.id===refId);const rt=await telFetch(refx);const rl=telBest(telLaps(rt));ref={tr:lapTrace(rt,rl),lap:rl}}
+if(my!==rid)return;const R=analizar(td,ref);if(R.error){$('#co-obs').innerHTML=`<p class="mut">${esc(R.error)}</p>`;return}
+const st=(k,val,c='')=>`<div class="st ${c}"><div class="big">${val}</div><div class="mut">${k}</div></div>`;
+$('#co-sum').innerHTML=`<div class="stats">${st('mejor vuelta',fmtLap(R.best.t),'mv')}${st('vuelta ideal',fmtLap(R.ideal))}${st('para ganar',Math.max(0,R.best.t-R.ideal).toFixed(3)+' s')}${st('constancia',R.val>1?'±'+R.sd.toFixed(2)+' s':'—')}</div>${ref?`<p class="mut sm">Comparando contra la mejor vuelta de ${esc(refx.piloto)}: ${fmtLap(ref.lap.t)} (${(R.best.t-ref.lap.t>=0?'+':'−')+Math.abs(R.best.t-ref.lap.t).toFixed(3)} s).</p>`:''}`;
+$('#co-laps').innerHTML=`<table class="db sect"><thead><tr><th>Vuelta</th><th>Tiempo</th><th>Dif.</th><th></th></tr></thead><tbody>${R.laps.map(l=>`<tr><td>${l.n}</td><td class="${l===R.best?'t':''}">${fmtLap(l.t)}</td><td class="mut">${l===R.best?'—':'+'+(l.t-R.best.t).toFixed(3)}</td><td class="mut">${l===R.best?'mejor':R.fuera.includes(l)?'fuera de ritmo':''}</td></tr>`).join('')}</tbody></table>`;
+// mapa
+const O=telOrigin(td),P=R.B.la.map((la,i)=>telXY(la,R.B.lo[i],O)),xs=P.map(p=>p[0]),ys=P.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.1,s=Math.max(x1-x0,y1-y0)/100;
+const loss=c=>Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),mx=Math.max(.1,...R.C.map(loss)),cc=l=>l<.04?'#2DD4BF':l<mx*.5?'#F2C14E':'#E4384A';
+const marks=R.C.map(c=>{const p=P[c.ia],seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${cc(loss(c))}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${cc(loss(c))}"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
+$('#co-map').innerHTML=`<svg class="gsvg cmmap" viewBox="${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}" role="img" aria-label="Mapa de curvas"><path d="M${P.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round"/>${marks}</svg><div class="gleg mut"><span class="lg" style="background:#2DD4BF"></span>sin pérdida<span class="lg" style="background:#F2C14E"></span>pierde algo<span class="lg" style="background:#E4384A"></span>pierde más</div>`;
+const o=observaciones(R,x,refx);obsCache=obsTxt(o,x);
+$('#co-obs').innerHTML=o.map(sct=>`<h3>${esc(sct.h)}</h3>${(sct.t||[]).map(t=>`<p>${esc(t)}</p>`).join('')}${sct.ol?(sct.ol.length?`<ol>${sct.ol.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}${sct.ul?(sct.ul.length?`<ul>${sct.ul.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}`).join('')}
+catch(e){if(my===rid)$('#co-obs').innerHTML=`<p class="mut">No se pudo analizar: ${esc(e.message)}</p>`}}
+const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?'Tanda '+x.tanda:'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
+tree();run();
+const refresh=async()=>{if(document.hidden)return;try{const n=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc);if(n.map(x=>x.id).join()!==S.map(x=>x.id).join()){S=n;tree()}}catch(e){}};
 setInterval(refresh,60000);document.addEventListener('visibilitychange',refresh)}
 /* GPS de la tanda: CSV real de la MyChron (Race Studio) */
 function parseTelemetry(txt){
@@ -470,7 +557,7 @@ sel.innerHTML='<option value="">Elegí una sesión…</option>'+rows.map(x=>`<op
 sel.onchange=async()=>{const x=rows.find(r=>r.id===sel.value);if(!x)return;msg('Bajando el CSV de '+x.piloto+'…');try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});
 const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);load(await r.text(),`${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}`)}catch(err){msg('No se pudo bajar el archivo: '+err.message)}}}catch(e){}})()}}
 const pg=document.body.dataset.page;
-const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:v=>CLOUD&&AUTH?vCmp(v):vA(v),r:vR,s:vS,d:vDr}[pg];
+const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:v=>CLOUD&&AUTH?vCmp(v):vA(v),r:vR,s:vS,d:vDr,c:vCoach}[pg];
 const view=()=>{stop();fn($('#view'))};
 if(fn&&$('#view'))view();
 if(pg==='a'&&$('#gpsv'))vGPS($('#gpsv'));
