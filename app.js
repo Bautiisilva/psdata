@@ -64,10 +64,6 @@ const ch=$('#ch');const mvp=e=>{const r=ch.getBoundingClientRect(),f=(e.clientX-
 ch.addEventListener('pointerdown',mvp);ch.addEventListener('pointermove',mvp);sc(st.i);
 $('#sa').onchange=e=>{st.A=+e.target.value;st.la='best';view()};$('#sb').onchange=e=>{st.B=+e.target.value;st.lb='best';view()};
 v.querySelectorAll('td button').forEach(b=>b.onclick=()=>{st[b.dataset.k==='a'?'la':'lb']=+b.dataset.l;view()})}
-/* Ranking */
-function vR(v){const o=[...D.keys()].sort((a,b)=>D[b].pts-D[a].pts),mx=Math.max(...D.map(d=>d.sd));
-v.innerHTML=`<div class="card"><table><tr><th>Piloto</th><th>Pts</th><th>Mejor vuelta</th><th>Regularidad</th></tr>${o.map((i,k)=>{const d=D[i];return`<tr><td style="padding:10px 4px"><b style="font:700 18px 'Barlow Condensed',sans-serif">${k+1}</b> <i class="chip" style="background:${d.c}"></i>${d.n}</td><td>${d.pts}</td><td style="font-family:'Barlow Condensed',sans-serif;font-size:17px">${fmt(d.best.time)}</td><td><div class="bar" title="σ ${d.sd.toFixed(3)} s"><i style="width:${100-d.sd/mx*70}%;background:${d.c}"></i></div></td></tr>`}).join('')}</table>
-<p class="mut">Regularidad: más barra, menos variación entre vueltas (se excluye la vuelta de salida).</p></div>`}
 /* Sesiones y cuentas */
 const PISTAS=['HMS Clockwise','HMS Counter-Clockwise','HMS (sin horquilla)'];
 const TIPOS=['Shifter','L206','Rotax Sr','Rotax Jr','K100 Sr','K100 Jr','DD2','Micro Mini','Bambino'];
@@ -84,11 +80,13 @@ const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
 const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'],MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const flong=d=>{const[y,m,dd]=d.split('-').map(Number),w=new Date(y,m-1,dd).getDay();return`${DIAS[w][0].toUpperCase()+DIAS[w].slice(1)} ${dd} de ${MESES[m-1]} de ${y}`};
 const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
-const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null});
-const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre';
+const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null});
+const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta';
 const BK='archivos',MAXF=50*1024*1024;
 const slug=t=>String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'archivo';
 const fsize=n=>n<1048576?Math.max(1,Math.round(n/1024))+' KB':(n/1048576).toFixed(1)+' MB';
+const parseLap=t=>{t=String(t||'').trim().replace(',','.');if(!t)return null;let m=t.match(/^(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/),s=m?(+m[1])*60+(+m[2]):/^\d+(\.\d+)?$/.test(t)?+t:NaN;return s>5&&s<600?Math.round(s*1000)/1000:NaN};
+const fmtLap=s=>{if(s==null||isNaN(s))return'—';const m=Math.floor(s/60),r=(s-m*60).toFixed(3);return m?m+':'+r.padStart(6,'0'):r};
 const topOf=(a,k)=>{const c=new Map();a.forEach(x=>{if(x[k])c.set(x[k],(c.get(x[k])||0)+1)});const t=[...c].sort((p,q)=>q[1]-p[1])[0];return t?t[0]:'—'};
 /* conexión y sesión de usuario */
 const pubH=()=>({apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key})});
@@ -144,12 +142,13 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label>
 <label>Tipo de kart${sel('tipo',TIPOS,'Elegí el tipo de kart')}</label>
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
+<label>Mejor vuelta <span class="opt">(para el ranking)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 0:49.123"></label>
 <label class="drop">Archivo del logger <span class="opt">(opcional)</span><input name="archivo" type="file" id="fa"><span class="fn" id="fn">Tocá para elegir el archivo exportado (MyChron, AiM…)</span></label>
 <button class="cta" type="submit" id="gs">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
 <div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
 <div class="tools"><select id="fp" aria-label="Filtrar por piloto"></select><button type="button" class="ghost" id="csv">Exportar CSV</button></div></div>
 <div class="sync" id="sync" role="status"></div>
-<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Pista</th><th>Kart</th><th>Tipo</th><th>Motor</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
+<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Pista</th><th>Kart</th><th>Tipo</th><th>Motor</th><th>Mejor vuelta</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
 <aside class="card col" aria-labelledby="dh"><h2 id="dh">Drivers sessions</h2><div id="dv"></div></aside></div>
 <div id="dls"></div>`;bindUbar();
 const setSt=(k,t)=>{const e=$('#sync');e.className='sync '+k;e.textContent=t};
@@ -162,18 +161,18 @@ const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(
 $('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc);
 return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary><i class="chip" style="background:var(--acc)"></i><span class="dn">${esc(n)}</span>${CLOUD&&!acc.has(n)?'<span class="nocc" title="Este nombre no tiene cuenta en Drivers">sin cuenta</span>':''}<span class="dc">${a.length} ${a.length===1?'tanda':'tandas'}</span></summary>
 <dl class="dinfo"><div><dt>Última</dt><dd>${fdate(a[0].fecha)}</dd></div><div><dt>Kart habitual</dt><dd>#${esc(topOf(a,'kart'))}</dd></div><div><dt>Tipo</dt><dd>${esc(topOf(a,'tipo'))}</dd></div><div><dt>Motor</dt><dd>${esc(topOf(a,'motor'))}</dd></div></dl>
-<ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span>${x.pista?`<span>${esc(x.pista)}</span>`:''}<span class="mut">${esc(x.tipo)} · ${esc(x.motor)}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
+<ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span>${x.pista?`<span>${esc(x.pista)}</span>`:''}<span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta '+fmtLap(x.mejor_vuelta):''}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
 :'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(desc);
 $('#cnt').textContent='· '+rows.length;
-$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="9" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
+$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="10" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
 $('#dls').innerHTML=dl('dlp',S.map(x=>x.piloto))+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
-if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,kart:parseInt(x.kart,10)||0})))});
+if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?x.mejor_vuelta:null,kart:parseInt(x.kart,10)||0})))});
 const[rows0,pf]=await Promise.all([api(COLS),getPerfiles()]),rows=rows0.map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
 S=[...rows,...S.filter(x=>x.p&&!ids.has(x.id)&&!sent.has(x.id))];saveS(S);P=pf;lsSet(PK,P);
 setSt('ok',`Guardado en la nube · ${S.length} ${S.length===1?'sesión':'sesiones'}`)}
@@ -185,7 +184,7 @@ $('#dv').addEventListener('toggle',e=>{const n=e.target.dataset.n;if(n!==undefin
 const fin=$('#fa'),fnl=$('#fn'),fdef=fnl.textContent;
 fin.onchange=()=>{const fl=fin.files[0];fnl.textContent=fl?`${fl.name} · ${fsize(fl.size)}`:fdef;fnl.parentElement.classList.toggle('has',!!fl)};
 $('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
-if(!x.piloto||!x.pista||!x.tipo||!x.motor)return;const fl=fin.files[0],btn=$('#gs');
+if(!x.piloto||!x.pista||!x.tipo||!x.motor)return;const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila como 49.123 o 0:49.123 (segundos con milésimas).';e.target.mv.focus();return}x.mejor_vuelta=mv;const fl=fin.files[0],btn=$('#gs');
 if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
 if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
 const m=fl.name.match(/\.([A-Za-z0-9]{1,8})$/),ext=m?'.'+m[1].toLowerCase():'';
@@ -194,24 +193,25 @@ btn.disabled=true;btn.textContent='Subiendo archivo…';$('#msg').textContent=''
 try{await stor(path,{method:'POST',headers:{'Content-Type':fl.type||'application/octet-stream','x-upsert':'false'},body:fl})}
 catch(err){btn.disabled=false;btn.textContent='Guardar sesión';$('#msg').textContent='No se pudo subir el archivo. Revisá la conexión y probá de nuevo. ('+err.message+')';return}
 btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;x.archivo_nombre=`${x.piloto} - ${x.fecha} ${x.hora.replace(':','.')} - kart ${x.kart}${ext}`}
-S.push(x);const ok=saveS(S);open.add(x.piloto);fin.value='';fin.onchange();
+S.push(x);const ok=saveS(S);open.add(x.piloto);fin.value='';fin.onchange();e.target.mv.value='';
 $('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':''}.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
 $('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
 if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
 if(CLOUD&&x.archivo){$('#msg').textContent='Borrando archivo…';await stor(x.archivo,{method:'DELETE'}).catch(()=>{})}
 S=S.filter(s=>s.id!==x.id);saveS(S);$('#msg').textContent='Sesión borrada.';draw()};
-$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Pista','Kart','Tipo de kart','Motor','Archivo'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.pista||'',x.kart,x.tipo,x.motor,x.archivo_nombre||''])];
+$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Pista','Kart','Tipo de kart','Motor','Mejor vuelta','Archivo'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.pista||'',x.kart,x.tipo,x.motor,x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'',x.archivo_nombre||''])];
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv'}));a.download='sesiones-psdata.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
 /* Drivers: perfil de cada piloto y cuentas (administrador) */
 function perfilHTML(nombre,rows){const a=rows.filter(x=>x.piloto===nombre).sort(desc);
 if(!a.length)return`<h2 class="pn">${esc(nombre)}</h2><p class="mut">Todavía no hay tandas cargadas. Cuando el administrador cargue una sesión con tu nombre, aparece acá sola.</p>`;
 const dias={};a.forEach(x=>(dias[x.fecha]=dias[x.fecha]||[]).push(x));const fechas=Object.keys(dias).sort().reverse();
 const st=(k,v)=>`<div class="st"><div class="big">${v}</div><div class="mut">${k}</div></div>`;
-return`<h2 class="pn">${esc(nombre)}</h2><div class="stats">${st('tandas',a.length)}${st(fechas.length===1?'día en pista':'días en pista',fechas.length)}${st('kart habitual','#'+esc(topOf(a,'kart')))}${st('última',fdate(a[0].fecha).slice(0,5))}</div>
-<div class="mut hab">Pista habitual: <b>${esc(topOf(a,'pista'))}</b> · Tipo: <b>${esc(topOf(a,'tipo'))}</b> · Motor: <b>${esc(topOf(a,'motor'))}</b></div>
+const cb=a.filter(x=>x.mejor_vuelta!=null).sort((p,q)=>p.mejor_vuelta-q.mejor_vuelta)[0];
+return`<h2 class="pn">${esc(nombre)}</h2><div class="stats">${st('tandas',a.length)}${st(fechas.length===1?'día en pista':'días en pista',fechas.length)}${st(cb?'mejor vuelta · '+esc(cb.pista||''):'mejor vuelta',cb?fmtLap(cb.mejor_vuelta):'—')}${st('kart habitual','#'+esc(topOf(a,'kart')))}</div>
+<div class="mut hab">Última sesión: <b>${fdate(a[0].fecha)}</b> · Pista habitual: <b>${esc(topOf(a,'pista'))}</b> · Tipo: <b>${esc(topOf(a,'tipo'))}</b> · Motor: <b>${esc(topOf(a,'motor'))}</b></div>
 ${fechas.map(f=>{const t=dias[f].slice().sort((p,q)=>p.hora.localeCompare(q.hora));return`<section class="dia"><h3>${flong(f)} <span class="mut">· ${t.length} ${t.length===1?'tanda':'tandas'}</span></h3>
-<ol class="tandas">${t.map((x,i)=>`<li><b>Tanda ${i+1} · ${esc(x.hora)}</b><span>${x.pista?esc(x.pista)+' · ':''}kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}</span>${flink(x,'📎 Descargar archivo')}</li>`).join('')}</ol></section>`}).join('')}`}
+<ol class="tandas">${t.map((x,i)=>`<li><b>Tanda ${i+1} · ${esc(x.hora)}</b><span>${x.pista?esc(x.pista)+' · ':''}kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta <b class="tl">'+fmtLap(x.mejor_vuelta)+'</b>':''}</span>${flink(x,'📎 Descargar archivo')}</li>`).join('')}</ol></section>`}).join('')}`}
 async function vDr(v){
 if(!CLOUD){v.innerHTML='<div class="card"><p>Para usar cuentas de pilotos hace falta conectar la base de datos (pasos en LEEME.txt).</p></div>';return}
 if(!AUTH)return gate(v,'Ingresá a tu perfil','Usá el usuario y la contraseña que te dio tu entrenador.',()=>vDr(v));
@@ -250,6 +250,34 @@ if(t.dataset.pw){const c=prompt(`Nueva contraseña para ${t.dataset.n} (mínimo 
 try{await rpc('cambiar_clave',{p_id:t.dataset.pw,p_clave:c});cm.innerHTML=`Contraseña de <b>${esc(t.dataset.n)}</b> cambiada a <b>${esc(c)}</b>.`}catch(err){cm.textContent='No se pudo cambiar: '+err.message}return}
 if(t.dataset.rm){if(!confirm(`¿Borrar la cuenta de ${t.dataset.n}? Ya no va a poder entrar. Sus sesiones no se borran.`))return;
 try{await rpc('eliminar_usuario',{p_id:t.dataset.rm});cm.textContent=`Cuenta de ${t.dataset.n} borrada.`;if(ver===t.dataset.n){ver='';lsSet('psdata-ver','')}await load()}catch(err){cm.textContent='No se pudo borrar: '+err.message}}}}
+/* Ranking (datos reales: mejor vuelta de cada sesión) */
+async function vR(v){
+if(!CLOUD){v.innerHTML='<div class="card"><p>Para el ranking hace falta conectar la base de datos (pasos en LEEME.txt).</p></div>';return}
+if(!AUTH)return gate(v,'Ingresá para ver el ranking','Usá tu usuario y contraseña de psData.',()=>vR(v));
+await whoami();if(!AUTH)return vR(v);
+const me=AUTH.perfil;let R=lsGet('psdata-rank',[]),fP=lsGet('psdata-rank-pista',''),fT=lsGet('psdata-rank-tipo',''),fD='',stamp='';
+v.innerHTML=ubar()+`<div class="card rf"><label>Pista<select id="rp"></select></label><label>Tipo de kart<select id="rt"></select></label></div>
+<div class="rk"><section class="card col"><div class="head"><h2>Ranking del día</h2><select id="rd" aria-label="Día"></select></div><div id="rday"></div></section>
+<section class="card col"><h2>Récords globales</h2><p class="mut sm">La mejor vuelta de cada piloto en esta pista. Si alguien la baja, se actualiza sola.</p><div id="rglo"></div></section></div><p class="mut upd" id="up"></p>`;bindUbar();
+const opts=(el,list,cur,todas)=>{el.innerHTML=(todas?`<option value="">${todas}</option>`:'')+list.map(x=>`<option${x===cur?' selected':''}>${esc(x)}</option>`).join('')};
+const best=rows=>{const m=new Map();rows.forEach(x=>{const b=m.get(x.piloto);if(!b||x.mejor_vuelta<b.mejor_vuelta||(x.mejor_vuelta===b.mejor_vuelta&&x.fecha<b.fecha))m.set(x.piloto,x)});return[...m.values()].sort((a,b)=>a.mejor_vuelta-b.mejor_vuelta||a.fecha.localeCompare(b.fecha))};
+const tabla=(rows,extra)=>{if(!rows.length)return'<p class="mut">Todavía no hay tiempos cargados acá.</p>';const p1=rows[0].mejor_vuelta;
+return`<table class="db rank"><thead><tr><th>#</th><th>Piloto</th><th>Mejor vuelta</th><th>Dif.</th><th>${extra.h}</th></tr></thead><tbody>${rows.map((x,i)=>`<tr class="${x.piloto===me.nombre?'yo':''}"><td class="pos">${i+1}</td><td>${esc(x.piloto)}${extra.badge?extra.badge(x,i):''}</td><td class="t">${fmtLap(x.mejor_vuelta)}</td><td class="mut">${i?'+'+(x.mejor_vuelta-p1).toFixed(3):'—'}</td><td class="mut">${extra.c(x)}</td></tr>`).join('')}</tbody></table>`};
+const draw=()=>{const pistas=[...new Set([...PISTAS,...R.map(x=>x.pista).filter(Boolean)])];
+if(!pistas.includes(fP)){const c=new Map();R.forEach(x=>c.set(x.pista,(c.get(x.pista)||0)+1));fP=[...c].sort((a,b)=>b[1]-a[1]).map(x=>x[0]).find(Boolean)||pistas[0]}
+const enP=R.filter(x=>x.pista===fP),tipos=[...new Set(enP.map(x=>x.tipo))].sort();if(fT&&!tipos.includes(fT))fT='';
+opts($('#rp'),pistas,fP);opts($('#rt'),tipos,fT,'Todas');
+const F=enP.filter(x=>!fT||x.tipo===fT),G=best(F),rec=new Map(G.map(x=>[x.piloto,x]));
+const dias=[...new Set(F.map(x=>x.fecha))].sort().reverse();if(!dias.includes(fD))fD=dias[0]||'';
+$('#rd').innerHTML=dias.length?dias.map(d=>`<option value="${d}"${d===fD?' selected':''}>${flong(d)}</option>`).join(''):'<option>Sin días con tiempos</option>';$('#rd').disabled=!dias.length;
+const day=F.filter(x=>x.fecha===fD),cnt=n=>day.filter(x=>x.piloto===n).length;
+$('#rday').innerHTML=tabla(best(day),{h:'Tandas',c:x=>cnt(x.piloto),badge:(x,i)=>G[0]&&G[0].piloto===x.piloto&&G[0].fecha===fD&&G[0].mejor_vuelta===x.mejor_vuelta?' <span class="bdg rec">Récord de pista</span>':rec.get(x.piloto)&&rec.get(x.piloto).fecha===fD&&rec.get(x.piloto).mejor_vuelta===x.mejor_vuelta?' <span class="bdg pb">Mejor personal</span>':''});
+$('#rglo').innerHTML=tabla(G,{h:'Fecha',c:x=>fdate(x.fecha),badge:(x,i)=>i===0?' <span class="bdg rec">Récord</span>':''});$('#up').textContent=stamp};
+async function load(){try{R=(await rpc('ranking_datos',{})||[]).map(x=>({piloto:x.piloto,fecha:String(x.fecha).slice(0,10),pista:x.pista,tipo:x.tipo,mejor_vuelta:Number(x.mejor_vuelta)}));lsSet('psdata-rank',R);
+const d=new Date();stamp=`Actualizado a las ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}. Se actualiza solo.`}
+catch(e){if(!AUTH){location.reload();return}stamp='Sin conexión: mostrando lo último guardado.'}draw()}
+$('#rp').onchange=e=>{fP=e.target.value;lsSet('psdata-rank-pista',fP);fD='';draw()};$('#rt').onchange=e=>{fT=e.target.value;lsSet('psdata-rank-tipo',fT);fD='';draw()};$('#rd').onchange=e=>{fD=e.target.value;draw()};
+draw();load();document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});setInterval(()=>{if(!document.hidden)load()},60000);addEventListener('online',load)}
 const pg=document.body.dataset.page;
 const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,r:vR,s:vS,d:vDr}[pg];
 const view=()=>{stop();fn($('#view'))};

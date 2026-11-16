@@ -137,3 +137,20 @@ button.file{background:none;border:0;padding:0;color:var(--acc);font:500 14px Ba
 button.file:hover{text-decoration:underline}
 button.file:disabled{opacity:.6;cursor:wait}
 @media(max-width:520px){.stats{grid-template-columns:repeat(2,1fr)}}
+/* Ranking */
+.rf{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rf label{color:var(--mut);font-size:13px}
+.rf select{margin-top:4px}
+.rk{display:grid;gap:12px}
+.rk .head select{width:auto;max-width:100%;margin-bottom:10px}
+.rank td{padding:9px 4px;white-space:normal}
+.rank .pos{font:700 20px "Barlow Condensed",sans-serif;width:28px}
+.db .t,.rank .t{font:700 17px "Barlow Condensed",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rank tr:first-child .pos,.rank tr:first-child .t{color:var(--acc)}
+.rank tr.yo td{background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.bdg{display:inline-block;font:500 11px Barlow,sans-serif;border-radius:10px;padding:1px 7px;margin-left:4px;vertical-align:1px;white-space:nowrap}
+.bdg.rec{background:var(--acc);color:var(--acc-ink)}
+.bdg.pb{border:1px solid var(--acc);color:var(--acc)}
+.sm{font-size:13px;margin:-4px 0 8px}
+.tl{color:var(--acc);font-weight:600}
+@media(min-width:900px){body:has(.rk){max-width:1100px}.rk{grid-template-columns:1fr 1fr;align-items:start}}

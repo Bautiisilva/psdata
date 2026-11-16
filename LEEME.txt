@@ -17,3 +17,4 @@ CUENTAS (Drivers)
 10. Entrá a Drivers con ese usuario y creá la cuenta de cada piloto.
 
 Nota: al cambiar app.js, style.css o config.js, actualizá el número ?v= en los .html para que los celulares bajen la versión nueva.
+11. Para el ranking, corré ranking.sql en el SQL Editor.

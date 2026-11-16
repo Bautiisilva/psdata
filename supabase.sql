@@ -44,3 +44,5 @@ alter table public.sesiones add column if not exists pista text;
 notify pgrst, 'reload schema';
 
 -- CUENTAS (agregado después): ver cuentas.sql
+
+-- RANKING (agregado después): ver ranking.sql
