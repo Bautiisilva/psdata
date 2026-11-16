@@ -422,42 +422,48 @@ let vsRef=null;if(ref){const m=cornerM(ref.tr,Math.round(ia/N*(ref.tr.v.length-1
 const avg=k=>otros.length?otros.reduce((s,o)=>s+o[k],0)/otros.length:null;
 return{n:ci+1,ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});
 return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref}}
+/* Dibujitos para los consejos del Coach */
+const PICS={
+linea:`<svg viewBox="0 0 140 128" role="img" aria-label="Camino por la curva: de afuera hacia adentro y otra vez afuera"><path d="M40 112 V62 Q40 36 66 36 H140" fill="none" stroke="#2a3534" stroke-width="42"/><path d="M58 64 l3 -4" stroke="#E4384A" stroke-width="5"/><path d="M61 60 l4 -3" stroke="#fff" stroke-width="5"/><path d="M65 57 l4 -2" stroke="#E4384A" stroke-width="5"/><path d="M25 112 C25 84 34 66 58 58 C80 50 104 22 136 19" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"/><path d="M128 13 l9 6 -9 7" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"/><circle cx="25" cy="98" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="25" y="101.8" class="pl c">1</text><circle cx="56" cy="59" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="56" y="62.8" class="pl c">2</text><circle cx="112" cy="25" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="112" y="28.8" class="pl c">3</text><text x="70" y="125" class="pl c" style="font-size:9.5px">1 afuera → 2 adentro → 3 afuera</text></svg>`,
+frenarTarde:`<svg viewBox="0 0 140 90" role="img" aria-label="Frená más cerca de la curva"><rect x="0" y="30" width="112" height="30" fill="#2a3534"/><path d="M112 30 h28 v60 h-28 z" fill="#2a3534"/><line x1="40" y1="26" x2="40" y2="64" stroke="#E4384A" stroke-width="3"/><text x="40" y="20" class="pl c" fill="#E4384A">✗</text><line x1="88" y1="26" x2="88" y2="64" stroke="var(--acc)" stroke-width="3"/><text x="88" y="20" class="pl c" fill="var(--acc)">✓ frená acá</text><circle cx="14" cy="45" r="5" fill="var(--mv)"/><path d="M24 45 h12" stroke="var(--mv)" stroke-width="2"/><path d="M118 62 v18" stroke="var(--ink)" stroke-width="2"/><path d="M113 74 l5 7 5 -7" fill="none" stroke="var(--ink)" stroke-width="2"/></svg>`,
+frenarAntes:`<svg viewBox="0 0 140 90" role="img" aria-label="Frená un poco antes"><rect x="0" y="30" width="112" height="30" fill="#2a3534"/><path d="M112 30 h28 v60 h-28 z" fill="#2a3534"/><line x1="60" y1="26" x2="60" y2="64" stroke="var(--acc)" stroke-width="3"/><text x="60" y="20" class="pl c" fill="var(--acc)">✓ frená acá</text><line x1="104" y1="26" x2="104" y2="64" stroke="#E4384A" stroke-width="3"/><text x="104" y="20" class="pl c" fill="#E4384A">✗</text><circle cx="14" cy="45" r="5" fill="var(--mv)"/><path d="M24 45 h12" stroke="var(--mv)" stroke-width="2"/><path d="M118 62 v18" stroke="var(--ink)" stroke-width="2"/><path d="M113 74 l5 7 5 -7" fill="none" stroke="var(--ink)" stroke-width="2"/></svg>`,
+acelerar:`<svg viewBox="0 0 140 90" role="img" aria-label="A fondo al salir de la curva"><path d="M20 90 V50 Q20 30 40 30 H140" fill="none" stroke="#2a3534" stroke-width="30"/><circle cx="34" cy="44" r="5" fill="var(--mv)"/><path d="M50 30 H124" stroke="var(--acc)" stroke-width="4" stroke-linecap="round"/><path d="M116 22 l10 8 -10 8" fill="none" stroke="var(--acc)" stroke-width="4" stroke-linecap="round"/><text x="84" y="68" class="pl c big" fill="var(--acc)">¡a fondo!</text></svg>`,
+cono:`<svg viewBox="0 0 140 90" role="img" aria-label="Elegí una marca para frenar siempre en el mismo lugar"><rect x="0" y="34" width="140" height="30" fill="#2a3534"/><path d="M84 32 l7 -20 7 20 z" fill="#FF8A3D"/><rect x="82" y="29" width="18" height="4" fill="#FF8A3D"/><rect x="86" y="20" width="10" height="3" fill="#fff"/><line x1="91" y1="36" x2="91" y2="64" stroke="var(--acc)" stroke-width="3"/><circle cx="20" cy="49" r="5" fill="var(--mv)"/><path d="M30 49 h44" stroke="var(--mv)" stroke-width="2" stroke-dasharray="4 4"/><text x="91" y="80" class="pl c" fill="var(--acc)">frená siempre acá</text></svg>`};
 const r0=x=>Math.round(Math.abs(x)),r1=x=>Math.abs(x).toFixed(1);
 const segs=g=>{const v=Math.abs(g);return (v<1?v.toFixed(2):v.toFixed(1)).replace('.',',')+' segundos'};
-const karts=m=>{const k=Math.max(1,Math.round(Math.abs(m)/2));return`${r0(m)} metros (como ${k} ${k===1?'kart':'karts'})`};
-/* Qué pasa en la curva y qué hacer, en palabras simples */
-function consejo(dF,dM,dE){
-if(dF>6)return{que:`Frenás muy temprano: ${karts(dF)} antes de lo que hace falta.`,tip:'Esperá un poquito más antes de frenar.'};
-if(dF<-6)return{que:`Frenás muy tarde: ${karts(dF)} después de lo que hace falta, y te pasás de la curva.`,tip:'Frená un poquito antes así doblás mejor.'};
-if(dM>2&&dE<-1.5)return{que:`Entrás muy rápido y después salís lento.`,tip:'Entrá un poquito más despacio para poder acelerar antes.'};
-if(dM<-2)return{que:`Vas muy despacio en el medio de la curva (${r0(dM)} km/h menos).`,tip:'Soltá antes el freno: el kart puede doblar más rápido.'};
-if(dE<-2)return{que:`Acelerás tarde al salir de la curva (salís ${r0(dE)} km/h más lento).`,tip:'Apenas ves la salida de la curva, ¡a fondo!'};
-return{que:'Perdés un poquito en toda la curva.',tip:'Hacé la curva igual que en tu mejor vuelta: misma frenada y mismo camino.'}}
+const karts=m=>{const k=Math.max(1,Math.round(Math.abs(m)/2));return`${r0(m)} metros, ¡como ${k} ${k===1?'kart':'karts'}!`};
+/* Qué pasa en la curva y qué hacer, en palabras muy simples y con dibujo */
+function consejo(dF,dM,dE,n){
+if(dF>6)return{pic:'frenarTarde',t:`Curva ${n}: frenás muy temprano (${karts(dF)}). 👉 Animate a frenar más tarde: esperá un poquito más y frená más cerca de la curva.`};
+if(dF<-6)return{pic:'frenarAntes',t:`Curva ${n}: frenás muy tarde y te pasás de la curva. 👉 Frená un poquito antes. Así el kart dobla mejor y salís más rápido.`};
+if(dM>2&&dE<-1.5)return{pic:'linea',t:`Curva ${n}: entrás muy rápido y después salís lento. 👉 Entrá más abierto: empezá la curva bien desde afuera, pasá cerca del cordón de adentro en el medio y salí otra vez hacia afuera. ¡De afuera, adentro, afuera!`};
+if(dM<-2)return{pic:'linea',t:`Curva ${n}: en el medio de la curva vas muy despacio. 👉 Soltá el freno antes de doblar y usá todo el ancho de la pista: de afuera hacia adentro.`};
+if(dE<-2)return{pic:'acelerar',t:`Curva ${n}: al salir tardás en acelerar. 👉 Apenas ves la salida y el volante se endereza, ¡pisá a fondo!`};
+return{pic:'linea',t:`Curva ${n}: podés ir un poquito más rápido. 👉 Entrá más abierto, de afuera hacia adentro, y frená en el mismo lugar que en tu mejor vuelta.`}}
 function observaciones(R,x,refx){const o=[],rec=[],nom=(x.piloto||'').split(' ')[0];
 const gIdeal=Math.max(0,R.best.t-R.ideal);
-// lo que hizo bien
-const bien=[`Tu mejor vuelta fue la número ${R.best.n}: ${fmtLap(R.best.t)}. ¡Ese es tu tiempo para mejorar!`];
-if(R.val>1&&R.sd<=0.25)bien.push('Tus vueltas son muy parecidas entre sí. ¡Eso es ser muy parejo! 👏');
+const bien=[`¡Muy bien, ${nom}! 🙌 Tu mejor vuelta fue la número ${R.best.n}: ${fmtLap(R.best.t)}.`];
+if(R.val>1&&R.sd<=0.25)bien.push('Tus vueltas son casi iguales. ¡Eso es ser muy parejo, como los grandes! 👏');
 const buenas=R.C.filter(c=>c.otros.length&&c.avgLoss<0.04).map(c=>c.n);
-if(buenas.length)bien.push(`${buenas.length===1?'La curva':'Las curvas'} ${buenas.join(', ')} ${buenas.length===1?'te sale':'te salen'} siempre bien. ✅`);
-if(gIdeal>0.05)bien.push(`Si juntás las mejores partes de todas tus vueltas, harías ${fmtLap(R.ideal)}: ${segs(gIdeal)} menos. ¡Ya lo hiciste por partes, así que podés!`);
+if(buenas.length)bien.push(`${buenas.length===1?'La curva':'Las curvas'} ${buenas.join(', ')} ${buenas.length===1?'te sale':'te salen'} siempre bien. ¡Genial! ✅`);
+if(gIdeal>0.05)bien.push(`Si juntás las mejores partes de tus vueltas, harías ${fmtLap(R.ideal)}. ¡Ya lo hiciste por partes, así que podés! ⭐`);
 o.push({h:'⭐ Lo que hiciste bien',t:bien});
-// para mejorar
-R.C.filter(c=>c.otros.length&&c.avgLoss>0.04).forEach(c=>{const k=consejo(c.dFreno,c.dMin,c.dEx);rec.push({g:c.avgLoss,t:`Curva ${c.n}: ${k.que} 👉 ${k.tip} Podés ganar ${segs(c.avgLoss)}.`})});
-if(R.ref)R.C.forEach(c=>{const v=c.vsRef;if(v&&v.loss>0.04){const k=consejo(c.mb.freno-v.freno,c.mb.vmin-v.vmin,c.mb.vex-v.vex);rec.push({g:v.loss,t:`Curva ${c.n} (mirando a ${refx.piloto}): ${k.que} 👉 ${k.tip} ${refx.piloto} ahí es ${segs(v.loss)} más rápido.`})}});
-if(R.val>1&&R.sd>0.3)rec.push({g:R.mean-R.best.t,t:`Tus vueltas cambian mucho entre una y otra. 👉 Elegí un lugar fijo para frenar en cada curva (un cono, una mancha, el cordón) y frená siempre ahí. Así cada vuelta te sale como la mejor.`});
+R.C.filter(c=>c.otros.length&&c.avgLoss>0.04).forEach(c=>{const k=consejo(c.dFreno,c.dMin,c.dEx,c.n);rec.push({g:c.avgLoss,pic:k.pic,t:`${k.t} Si lo hacés, ganás ${segs(c.avgLoss)}. 🏁`})});
+if(R.ref)R.C.forEach(c=>{const v=c.vsRef;if(v&&v.loss>0.04){const k=consejo(c.mb.freno-v.freno,c.mb.vmin-v.vmin,c.mb.vex-v.vex,c.n);rec.push({g:v.loss,pic:k.pic,t:`${k.t} (Así lo hace ${refx.piloto}, que ahí es ${segs(v.loss)} más rápido.)`})}});
+if(R.val>1&&R.sd>0.3)rec.push({g:R.mean-R.best.t,pic:'cono',t:`Tus vueltas cambian mucho entre una y otra. 👉 Buscá una marca para frenar en cada curva (un cono, una mancha, el cordón) y frená siempre ahí. ¡Así todas tus vueltas salen como la mejor!`});
 rec.sort((a,b)=>b.g-a.g);
-o.push({h:'🎯 Para mejorar (lo más importante)',ol:rec.slice(0,3).map(r=>r.t),vacio:'¡Muy bien! No hay errores grandes: tus vueltas son muy parecidas. Para seguir bajando el tiempo, mirá cómo lo hace un piloto más rápido.'});
-if(rec.length>3)o.push({h:'📝 Después, cuando lo anterior te salga',ul:rec.slice(3,5).map(r=>r.t)});
-// parejo
-if(R.val>1)o.push({h:'🔁 ¿Fuiste parejo?',t:[R.sd<=0.25?'Sí, ¡muy parejo! Tus vueltas casi no cambian.':R.sd<=0.5?`Bastante parejo. Tus vueltas cambian unos ${segs(R.sd)}. La meta es que cambien menos de 0,25 segundos.`:`No mucho todavía: tus vueltas cambian unos ${segs(R.sd)}. Primero tratá de hacer siempre la misma vuelta; la velocidad viene después.`,
-...(R.fuera.length?[`Las vueltas ${R.fuera.map(l=>l.n).join(', ')} fueron mucho más lentas (tráfico o un error), así que no las tuve en cuenta.`]:[])]});
-// para el entrenador
+o.push({h:'🎯 Para mejorar',ol:rec.slice(0,3),vacio:'¡Excelente! No hay errores grandes: tus vueltas son muy parecidas. Para ir todavía más rápido, mirá cómo lo hace un piloto más rápido. 🚀'});
+if(rec.length>3)o.push({h:'📝 Después, cuando lo anterior te salga',ul:rec.slice(3,5)});
+if(R.val>1)o.push({h:'🔁 ¿Fuiste parejo?',t:[R.sd<=0.25?'¡Sí, muy parejo! Tus vueltas casi no cambian. 👏':R.sd<=0.5?`¡Bastante parejo! Tus vueltas cambian unos ${segs(R.sd)}. La meta es que cambien menos de 0,25 segundos.`:`Todavía no, pero no pasa nada: tus vueltas cambian unos ${segs(R.sd)}. Primero tratá de hacer siempre la misma vuelta; la velocidad viene sola después.`,
+...(R.fuera.length?[`Las vueltas ${R.fuera.map(l=>l.n).join(', ')} fueron mucho más lentas (tráfico o un error), así que no las conté. ¡Errores tenemos todos!`]:[])]});
+o.push({h:'💪 ¡Vos podés!',t:[`Practicá de a una cosa por vez: primero la número 1. Cuando te salga, pasá a la siguiente. ¡Cada vuelta aprendés algo nuevo, ${nom}! 🏎️`]});
 o.push({h:'🛠️ Para el entrenador (datos técnicos)',ul:[`Mejor vuelta ${fmtLap(R.best.t)} · vuelta ideal ${fmtLap(R.ideal)} · promedio ${fmtLap(R.mean)} · desvío ${R.sd.toFixed(3)} s.`,
 ...R.C.map(c=>`Curva ${c.n} (${c.dist} m): frenada a ${r0(c.mb.freno)} m del vértice, entrada ${r0(c.mb.vin)}, mínima ${r0(c.mb.vmin)}, salida ${r0(c.mb.vex)} km/h${c.otros.length?` · resto de las vueltas ${c.avgLoss>=0?'+':'−'}${Math.abs(c.avgLoss).toFixed(3)} s`:''}${c.vsRef?` · vs ${refx.piloto} ${c.vsRef.loss>=0?'+':'−'}${Math.abs(c.vsRef.loss).toFixed(3)} s`:''}.`),
 'Curvas detectadas en la mejor vuelta (donde la velocidad baja y vuelve a subir). Vueltas más de 7% lentas no cuentan para los promedios.']});
 return o}
-const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${t}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+t):[s.vacio]):[]),''])].join('\r\n');
+const itT=i=>typeof i==='string'?i:i.t;
+const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${itT(t)}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+itT(t)):[s.vacio]):[]),''])].join('\r\n');
+const itH=i=>typeof i==='string'?esc(i):`<div class="tipc">${i.pic&&PICS[i.pic]?`<div class="pic">${PICS[i.pic]}</div>`:''}<div class="tipt">${esc(i.t)}</div></div>`;
 async function vCoach(v){
 if(!CLOUD){v.innerHTML='<div class="card"><p>Para el Coach hace falta conectar la base de datos.</p></div>';return}
 if(!AUTH)return gate(v,'Ingresá para ver el Coach','Usá tu usuario y contraseña de psData.',()=>vCoach(v));
@@ -493,7 +499,7 @@ const loss=c=>Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),mx=Math.max(.1,...R.C.m
 const marks=R.C.map(c=>{const p=P[c.ia],seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${cc(loss(c))}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${cc(loss(c))}"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
 $('#co-map').innerHTML=`<svg class="gsvg cmmap" viewBox="${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}" role="img" aria-label="Mapa de curvas"><path d="M${P.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round"/>${marks}</svg><div class="gleg mut"><span class="lg" style="background:#2DD4BF"></span>sin pérdida<span class="lg" style="background:#F2C14E"></span>pierde algo<span class="lg" style="background:#E4384A"></span>pierde más</div>`;
 const o=observaciones(R,x,refx);obsCache=obsTxt(o,x);
-$('#co-obs').innerHTML=o.map(sct=>`<h3>${esc(sct.h)}</h3>${(sct.t||[]).map(t=>`<p>${esc(t)}</p>`).join('')}${sct.ol?(sct.ol.length?`<ol>${sct.ol.map(t=>`<li>${esc(t)}</li>`).join('')}</ol>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}${sct.ul?(sct.ul.length?`<ul>${sct.ul.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}`).join('')}
+$('#co-obs').innerHTML=o.map(sct=>`<h3>${esc(sct.h)}</h3>${(sct.t||[]).map(t=>`<p>${esc(t)}</p>`).join('')}${sct.ol?(sct.ol.length?`<ol class="tips">${sct.ol.map(t=>`<li>${itH(t)}</li>`).join('')}</ol>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}${sct.ul?(sct.ul.length?`<ul${sct.ul.some(t=>typeof t!=='string')?' class="tips"':''}>${sct.ul.map(t=>`<li>${itH(t)}</li>`).join('')}</ul>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}`).join('')}
 catch(e){if(my===rid)$('#co-obs').innerHTML=`<p class="mut">No se pudo analizar: ${esc(e.message)}</p>`}}
 const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?'Tanda '+x.tanda:'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
 tree();run();
