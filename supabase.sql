@@ -46,3 +46,5 @@ notify pgrst, 'reload schema';
 -- CUENTAS (agregado después): ver cuentas.sql
 
 -- RANKING (agregado después): ver ranking.sql
+
+-- TANDA (agregado después): ver tanda.sql
