@@ -156,9 +156,8 @@ const sel=(name,list,ph)=>`<select name="${name}" required><option value="" disa
 v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete="off"><h2>Nueva sesión</h2>
 <label>Piloto<span id="pwrap"></span></label>
 <div class="pair"><label>Fecha<input name="fecha" type="date" required value="${hoy}"></label><label>Hora de la sesión<input name="hora" type="time" required value="${hora}"></label></div>
-<label>Número de tanda<select name="tanda" required><option value="" disabled selected>Elegí la tanda</option>${[1,2,3,4,5,6,7].map(n=>`<option value="${n}">Tanda ${n}</option>`).join('')}</select></label>
 <label>Pista${sel('pista',PISTAS,'Elegí la pista')}</label>
-<label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label>
+<div class="pair"><label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label><label>Número de tanda<select name="tanda" required><option value="" disabled selected>Elegí</option>${[1,2,3,4,5,6,7].map(n=>`<option value="${n}">Tanda ${n}</option>`).join('')}</select></label></div>
 <label>Tipo de kart${sel('tipo',TIPOS,'Elegí el tipo de kart')}</label>
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
 <label>Mejor vuelta <span class="opt">(se completa sola con el CSV)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 1:05.300"></label><div class="mut csvi" id="csvi"></div>
