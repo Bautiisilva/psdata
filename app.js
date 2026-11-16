@@ -99,6 +99,8 @@ if(!laps.length){const st=row(['segment times','lap times']);if(st){const t=toks
 laps=laps.map(x=>Math.round(x*1000)/1000).filter(x=>x>5&&x<600);if(!laps.length)return null;
 let bi=0;laps.forEach((x,i)=>{if(x<laps[bi])bi=i});return{laps,best:laps[bi],bestIdx:bi}}
 const fmtLap=s=>{if(s==null||isNaN(s))return'—';const m=Math.floor(s/60),r=(s-m*60).toFixed(3);return m?m+':'+r.padStart(6,'0'):r};
+const normN=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const lev=(a,b)=>{const m=a.length,n=b.length;if(Math.abs(m-n)>2)return 9;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]};
 const topOf=(a,k)=>{const c=new Map();a.forEach(x=>{if(x[k])c.set(x[k],(c.get(x[k])||0)+1)});const t=[...c].sort((p,q)=>q[1]-p[1])[0];return t?t[0]:'—'};
 /* conexión y sesión de usuario */
 const pubH=()=>({apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key})});
@@ -164,10 +166,19 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <aside class="card col" aria-labelledby="dh"><h2 id="dh">Drivers sessions</h2><div id="dv"></div></aside></div>
 <div id="dls"></div>`;bindUbar();
 const setSt=(k,t)=>{const e=$('#sync');e.className='sync '+k;e.textContent=t};
-const drawP=()=>{if(!CLOUD){$('#pwrap').innerHTML=`<input name="piloto" list="dlp" required placeholder="Elegí o escribí un nombre" value="${esc(lastOf('piloto'))}">`;return}
-const w=$('#pwrap'),cur=w.querySelector('select')?w.querySelector('select').value:lastOf('piloto'),ns=P.filter(p=>p.rol==='piloto').map(p=>p.nombre);
-w.innerHTML=ns.length?`<select name="piloto" required><option value="" disabled${ns.includes(cur)?'':' selected'}>Elegí el piloto</option>${ns.map(n=>`<option${n===cur?' selected':''}>${esc(n)}</option>`).join('')}</select>`
-:`<select name="piloto" required><option value="" selected disabled>Primero creá la cuenta del piloto en Drivers</option></select><a class="mini" href="drivers.html">Ir a Drivers →</a>`};
+let okNew='';
+const known=()=>{const acc=P.filter(p=>p.rol==='piloto').map(p=>p.nombre);return{acc,all:[...new Set([...acc,...S.map(x=>x.piloto)])]}};
+const sugg=n=>{const k=normN(n);if(!k)return null;let best=null,bd=9;for(const m of known().all){if(m===n)return null;const km=normN(m),fw=km.split(' ')[0],d=km===k?0:lev(km,k),lim=k.length<=4?1:2,dd=Math.min(d,!k.includes(' ')&&k.length>=3&&(fw===k||lev(fw,k)<=(k.length<=4?0:1))?1:9);if(dd<=lim&&dd<bd){bd=dd;best=m}}return best};
+const updHint=()=>{const inp=$('#fs').piloto,h=$('#ph');if(!inp||!h)return;const v=inp.value.trim(),{acc,all}=known();h.className='phint';
+if(!v){h.innerHTML='';return}
+if(!CLOUD){h.innerHTML='';return}
+if(acc.includes(v)){h.className='phint ok';h.textContent='✓ Tiene cuenta: la sesión aparece en su perfil.';return}
+const sg=sugg(v);if(sg&&okNew!==v){h.className='phint warn';h.innerHTML=`¿Quisiste decir <b>${esc(sg)}</b>? <span class="pbtn"><button type="button" class="chipb" data-use="${esc(sg)}">Usar ${esc(sg)}</button><button type="button" class="chipb" data-new="1">No, es otro piloto</button></span>`;return}
+h.textContent=all.includes(v)?'Sin cuenta todavía: creásela en Drivers con este mismo nombre para que vea sus tandas.':'Piloto nuevo sin cuenta: se guarda igual y después le creás la cuenta en Drivers.'};
+const drawP=()=>{const w=$('#pwrap');if(!w.querySelector('input')){w.innerHTML=`<input name="piloto" list="dlp" required autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Elegí de la lista o escribí uno nuevo" value="${esc(lastOf('piloto'))}"><div class="phint" id="ph" role="status"></div>`;
+w.querySelector('input').oninput=()=>{okNew='';updHint()};
+w.onclick=e=>{const t=e.target.closest('button');if(!t)return;e.preventDefault();const inp=$('#fs').piloto;if(t.dataset.use){inp.value=t.dataset.use;okNew=''}else if(t.dataset.new){okNew=inp.value.trim()}updHint()}}
+updHint()};
 const drawD=()=>{const g={};S.forEach(x=>(g[x.piloto]=g[x.piloto]||[]).push(x));
 const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(b)),acc=new Set(P.map(p=>p.nombre));
 $('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc);
@@ -180,7 +191,7 @@ $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<opt
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(desc);
 $('#cnt').textContent='· '+rows.length;
 $('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="10" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
-$('#dls').innerHTML=dl('dlp',S.map(x=>x.piloto))+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
+$('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
@@ -200,7 +211,7 @@ if(fl.size>MAXF)return;let r=null;try{r=lapsFromCSV(await fl.slice(0,2*1024*1024
 if(r){LAPS=r.laps;$('#fs').mv.value=fmtLap(r.best);ci.className='mut csvi ok';ci.textContent=`Leído del archivo: ${r.laps.length} ${r.laps.length===1?'vuelta':'vueltas'}, la mejor fue la ${r.bestIdx+1}ª con ${fmtLap(r.best)}.`}
 else{ci.className='mut csvi warn';ci.textContent=/\.csv$/i.test(fl.name)?'No encontré tiempos de vuelta en este CSV. Escribí la mejor vuelta a mano.':'Este archivo no es un CSV: no puedo leer los tiempos. Exportalo como CSV desde Race Studio 3 o escribí la mejor vuelta a mano.'}};
 $('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
-if(!x.piloto||!x.pista||!x.tipo||!x.motor)return;const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila como 49.123 o 0:49.123 (segundos con milésimas).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
+if(!x.piloto||!x.pista||!x.tipo||!x.motor)return;if(CLOUD&&!known().acc.includes(x.piloto)&&sugg(x.piloto)&&okNew!==x.piloto){updHint();$('#msg').textContent='Revisá el nombre del piloto antes de guardar.';e.target.piloto.focus();return}const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila como 49.123 o 0:49.123 (segundos con milésimas).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
 if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
 if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
 const m=fl.name.match(/\.([A-Za-z0-9]{1,8})$/),ext=m?'.'+m[1].toLowerCase():'';
