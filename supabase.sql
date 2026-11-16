@@ -19,3 +19,5 @@ drop policy if exists "borrar sesiones" on public.sesiones;
 create policy "ver sesiones" on public.sesiones for select to anon using (true);
 create policy "cargar sesiones" on public.sesiones for insert to anon with check (true);
 create policy "borrar sesiones" on public.sesiones for delete to anon using (true);
+
+grant select, insert, delete on public.sesiones to anon;
