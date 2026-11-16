@@ -49,3 +49,26 @@ h1{font-size:34px;margin:4px 0 8px}
 .feat p{margin:0 0 8px;max-width:60ch}
 .cta{display:inline-block;background:var(--acc);color:var(--acc-ink);font-weight:500;text-decoration:none;font:500 16px Barlow,sans-serif;padding:10px 16px;border-radius:8px}
 footer{margin-top:24px;color:var(--mut);font-size:13px}
+
+/* Sesiones */
+.ses{display:grid;gap:12px}
+.col h2,.head h2{font:700 22px "Barlow Condensed",sans-serif;margin:0 0 10px}
+.col label{display:block;color:var(--mut);font-size:13px;margin-bottom:10px}
+.col input{display:block;width:100%;margin-top:4px;font:500 16px Barlow,sans-serif;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px;color-scheme:dark}
+.col input:focus-visible{outline:2px solid var(--acc);outline-offset:1px;border-color:var(--acc)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+form.col .cta{border:0;cursor:pointer;width:100%;margin-top:4px}
+#msg{min-height:20px;margin-top:8px}
+.head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+.tools{display:flex;gap:8px;margin-bottom:10px}
+.tools select{width:auto;max-width:180px}
+.ghost{background:none;border:1px solid var(--acc);color:var(--acc);font:500 14px Barlow,sans-serif;border-radius:8px;padding:7px 10px;cursor:pointer;white-space:nowrap}
+.tw{overflow-x:auto}
+.db td{padding:8px 4px;font-size:15px;white-space:nowrap}
+.db td.num{font:700 17px "Barlow Condensed",sans-serif;color:var(--acc)}
+.db .empty{text-align:center;padding:18px;white-space:normal}
+.del{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px}
+.del:hover,.del:focus-visible{color:#F0627A;background:var(--bg)}
+@media(min-width:900px){body:has(.ses){max-width:1100px}.ses{grid-template-columns:320px 1fr;align-items:start}}
+nav{flex-wrap:wrap}
+@media(max-width:420px){nav a{font-size:14px;padding:9px 2px}}
