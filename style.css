@@ -27,12 +27,6 @@ td{padding:2px;border-top:1px solid var(--line)}
 td button{width:100%;text-align:left;border:0;background:none;color:var(--ink);font:500 16px "Barlow Condensed",sans-serif;padding:7px 6px;border-radius:6px;cursor:pointer}
 td button.on{background:var(--bg);box-shadow:inset 3px 0 0 var(--acc)}
 td button.best{color:var(--best);font-weight:700}
-.row{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;color:var(--ink);font:500 16px Barlow,sans-serif;padding:9px 6px;border-top:1px solid var(--line);text-align:left;cursor:pointer}
-.row.on{background:var(--bg);box-shadow:inset 3px 0 0 var(--acc)}
-.row b{font:700 20px "Barlow Condensed",sans-serif;width:20px}
-.row span.g{margin-left:auto;color:var(--mut);font-variant-numeric:tabular-nums}
-.tele{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
-.tele .big{font-size:38px}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:60px}
 .bar i{display:block;height:100%}
 .tag{font-size:12px;color:var(--mut)}
