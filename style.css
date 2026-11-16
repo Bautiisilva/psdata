@@ -156,3 +156,4 @@ button.file:disabled{opacity:.6;cursor:wait}
 @media(min-width:900px){body:has(.rk){max-width:1100px}.rk{grid-template-columns:1fr 1fr;align-items:start}}
 .csvi{margin:-4px 0 10px;font-size:13px}.csvi:empty{display:none}.csvi.ok{color:var(--acc)}.csvi.warn{color:#F2C14E}
 .phint{font-size:13px;margin-top:5px;min-height:0;color:var(--mut)}.phint:empty{display:none}.phint.ok{color:var(--acc)}.phint.warn{color:#F2C14E}.phint b{color:var(--ink)}.pbtn{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.db th.c,.db td.c{text-align:center}
