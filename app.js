@@ -215,7 +215,7 @@ $('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
 $('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
 if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
-if(CLOUD&&x.archivo)stor(x.archivo,{method:'DELETE'}).catch(()=>{});
+if(CLOUD&&x.archivo){$('#msg').textContent='Borrando archivo…';await stor(x.archivo,{method:'DELETE'}).catch(()=>{})}
 S=S.filter(s=>s.id!==x.id);saveS(S);$('#msg').textContent='Sesión borrada.';draw()};
 $('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Pista','Kart','Tipo de kart','Motor','Archivo'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.pista||'',x.kart,x.tipo,x.motor,x.archivo_nombre||''])];
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv'}));a.download='sesiones-psdata.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
