@@ -69,6 +69,26 @@ form.col .cta{border:0;cursor:pointer;width:100%;margin-top:4px}
 .db .empty{text-align:center;padding:18px;white-space:normal}
 .del{background:none;border:0;color:var(--mut);cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px}
 .del:hover,.del:focus-visible{color:#F0627A;background:var(--bg)}
-@media(min-width:900px){body:has(.ses){max-width:1100px}.ses{grid-template-columns:320px 1fr;align-items:start}}
+.sync{font-size:13px;padding:7px 10px;border-radius:8px;margin-bottom:10px;border:1px solid var(--line);color:var(--mut)}
+.sync:empty{display:none}
+.sync.ok{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 40%,transparent)}
+.sync.ok::before{content:"● "}
+.sync.warn,.sync.err{color:#F2C14E;border-color:#5A4A1E}
+.db tr.pend td{opacity:.6}
+.drv{border-top:1px solid var(--line)}
+.drv summary{display:flex;align-items:center;gap:6px;padding:10px 2px;cursor:pointer;list-style:none}
+.drv summary::-webkit-details-marker{display:none}
+.drv summary::after{content:"›";margin-left:8px;color:var(--mut);transition:transform .15s}
+.drv[open] summary::after{transform:rotate(90deg)}
+.dn{font:700 18px "Barlow Condensed",sans-serif}
+.dc{margin-left:auto;color:var(--acc);font-size:13px;font-variant-numeric:tabular-nums}
+.dinfo{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin:0 0 10px;padding:8px 10px;background:var(--bg);border-radius:8px}
+.dinfo dt{color:var(--mut);font-size:12px}
+.dinfo dd{margin:0;font-size:14px}
+.tandas{list-style:none;margin:0 0 12px;padding:0}
+.tandas li{display:grid;gap:1px;padding:7px 0 7px 10px;border-left:2px solid var(--acc);margin-bottom:6px;font-size:14px}
+.tandas b{font:700 15px "Barlow Condensed",sans-serif;color:var(--acc)}
+@media(min-width:900px){body:has(.ses){max-width:1100px}.ses{grid-template-columns:300px 1fr;align-items:start}.ses aside{grid-column:2}}
+@media(min-width:1280px){body:has(.ses){max-width:1440px}.ses{grid-template-columns:300px 1fr 320px}.ses aside{grid-column:auto}}
 nav{flex-wrap:wrap}
 @media(max-width:420px){nav a{font-size:14px;padding:9px 2px}}

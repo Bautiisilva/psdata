@@ -88,12 +88,18 @@ v.innerHTML=`<div class="card"><table><tr><th>Piloto</th><th>Pts</th><th>Mejor v
 /* Sesiones */
 const TIPOS=['Mini (6-8 años)','Cadete','Junior','Senior','Master','Alquiler / rental','Shifter (con cambios)'];
 const MOTORES=['60cc 2T','IAME X30 125cc','Rotax Max 125cc','Vortex 125cc','KZ 125cc (con cambios)','Honda GX 4T','Briggs & Stratton 4T','Eléctrico'];
-const SK='psdata-sesiones';
-const loadS=()=>{try{return JSON.parse(localStorage.getItem(SK))||[]}catch(e){return[]}};
+const SK='psdata-sesiones',CFG=window.PSDATA_DB||{},CLOUD=!!(CFG.url&&CFG.key);
+const uid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+const loadS=()=>{let a;try{a=JSON.parse(localStorage.getItem(SK))||[]}catch(e){a=[]}return a.map(x=>x.id?x:{...x,id:uid(),p:1})};
 const saveS=a=>{try{localStorage.setItem(SK,JSON.stringify(a));return true}catch(e){return false}};
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
-function vS(v){let S=loadS(),filt='';
+const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
+const api=(q,o={})=>fetch(CFG.url.replace(/\/+$/,'')+'/rest/v1/sesiones'+q,{...o,headers:{apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key}),'Content-Type':'application/json',...(o.headers||{})}})
+.then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}).then(t=>t?JSON.parse(t):null);
+const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor});
+function vS(v){let S=loadS(),filt='',busy=false,again=false;const open=new Set();
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 const now=new Date(),pad=n=>String(n).padStart(2,'0'),hoy=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
 const dl=(id,a)=>`<datalist id="${id}">${[...new Set(a)].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
 const lastOf=k=>S.length?S[S.length-1][k]:'';
@@ -106,20 +112,46 @@ v.innerHTML=`<div class="ses"><form class="card col" id="fs" autocomplete="off">
 <button class="cta" type="submit">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
 <div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
 <div class="tools"><select id="fp" aria-label="Filtrar por piloto"></select><button type="button" class="ghost" id="csv">Exportar CSV</button></div></div>
-<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Kart</th><th>Tipo</th><th>Motor</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div></div>
-${dl('dlp',[...D.map(d=>d.n),...S.map(x=>x.piloto)])}${dl('dlt',[...TIPOS,...S.map(x=>x.tipo)])}${dl('dlm',[...MOTORES,...S.map(x=>x.motor)])}`;
+<div class="sync" id="sync" role="status"></div>
+<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Kart</th><th>Tipo</th><th>Motor</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
+<aside class="card col" aria-labelledby="dh"><h2 id="dh">Drivers sessions</h2><div id="dv"></div></aside></div>
+<div id="dls"></div>`;
+const setSt=(k,t)=>{const e=$('#sync');e.className='sync '+k;e.textContent=t};
+const local=()=>setSt('warn','Guardadas solo en este navegador. Para que queden guardadas siempre y se vean desde cualquier dispositivo, conectá la base de datos (pasos en LEEME.txt).');
+const drawD=()=>{const g={};S.forEach(x=>(g[x.piloto]=g[x.piloto]||[]).push(x));
+const top=(a,k)=>{const c=new Map();a.forEach(x=>c.set(x[k],(c.get(x[k])||0)+1));return[...c].sort((p,q)=>q[1]-p[1])[0][0]};
+const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(b));
+$('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc),dc=D.find(d=>d.n===n);
+return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary><i class="chip" style="background:${dc?dc.c:'var(--acc)'}"></i><span class="dn">${esc(n)}</span><span class="dc">${a.length} ${a.length===1?'tanda':'tandas'}</span></summary>
+<dl class="dinfo"><div><dt>Última</dt><dd>${fdate(a[0].fecha)}</dd></div><div><dt>Kart habitual</dt><dd>#${esc(top(a,'kart'))}</dd></div><div><dt>Tipo</dt><dd>${esc(top(a,'tipo'))}</dd></div><div><dt>Motor</dt><dd>${esc(top(a,'motor'))}</dd></div></dl>
+<ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}</span></li>`).join('')}</ol></details>`}).join('')
+:'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
-const rows=S.map((x,i)=>({...x,i})).filter(x=>!filt||x.piloto===filt).sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora));
+const rows=S.filter(x=>!filt||x.piloto===filt).sort(desc);
 $('#cnt').textContent='· '+rows.length;
-$('#tb').innerHTML=rows.length?rows.map(x=>`<tr><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td><button type="button" class="del" data-i="${x.i}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="7" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`};
-draw();
-$('#fs').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),x={};['piloto','fecha','hora','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)).trim());
-if(!x.piloto||!x.tipo||!x.motor)return;S.push(x);const ok=saveS(S);
-$('#msg').textContent=ok?`Sesión de ${x.piloto} guardada.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw()};
+$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="7" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
+$('#dls').innerHTML=dl('dlp',[...D.map(d=>d.n),...S.map(x=>x.piloto)])+dl('dlt',[...TIPOS,...S.map(x=>x.tipo)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
+drawD()};
+async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
+try{const pend=S.filter(x=>x.p);
+if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,kart:parseInt(x.kart,10)||0})))});
+const rows=(await api('?select=id,piloto,fecha,hora,kart,tipo,motor')).map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
+S=[...rows,...S.filter(x=>x.p&&!ids.has(x.id)&&!sent.has(x.id))];saveS(S);
+setSt('ok',`Guardado en la nube · ${S.length} ${S.length===1?'sesión':'sesiones'}`)}
+catch(e){setSt('err',`Sin conexión con la base de datos (${e.message}). Las sesiones quedan en este dispositivo y se suben solas cuando vuelva la conexión.`)}
+busy=false;draw();if(again){again=false;sync()}}
+draw();if(CLOUD)sync();else local();
+addEventListener('online',sync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});setInterval(()=>{if(!document.hidden)sync()},60000);
+$('#dv').addEventListener('toggle',e=>{const n=e.target.dataset.n;if(n!==undefined)e.target.open?open.add(n):open.delete(n)},true);
+$('#fs').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)).trim());
+if(!x.piloto||!x.tipo||!x.motor)return;S.push(x);const ok=saveS(S);open.add(x.piloto);
+$('#msg').textContent=ok?`Sesión de ${x.piloto} guardada.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
-$('#tb').onclick=e=>{const b=e.target.closest('.del');if(!b)return;const x=S[+b.dataset.i];if(!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;S.splice(+b.dataset.i,1);saveS(S);draw()};
-$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Kart','Tipo de kart','Motor'],...S.filter(x=>!filt||x.piloto===filt).map(x=>[x.piloto,x.fecha,x.hora,x.kart,x.tipo,x.motor])];
+$('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
+if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
+S=S.filter(s=>s.id!==x.id);saveS(S);$('#msg').textContent='Sesión borrada.';draw()};
+$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Kart','Tipo de kart','Motor'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.kart,x.tipo,x.motor])];
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv'}));a.download='sesiones-psdata.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
 const pg=document.body.dataset.page;
 const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,l:vL,r:vR,s:vS}[pg];
