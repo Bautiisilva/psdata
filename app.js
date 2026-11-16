@@ -93,7 +93,8 @@ const SK='psdata-sesiones',AK='psdata-auth',PK='psdata-drivers',DOM='@psdata.app
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
 const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}};
-const loadS=()=>lsGet(SK,[]).map(x=>x.id?x:{...x,id:uid(),p:1});
+const loadS=()=>{const a=lsGet(SK,[]);let ch=false;const b=a.map(x=>{if(x&&x.id)return x;ch=true;return{...x,id:uid(),p:1}});if(ch)lsSet(SK,b);return b};
+const pendientes=()=>loadS().filter(x=>x.p);
 const saveS=a=>lsSet(SK,a);
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
@@ -127,7 +128,7 @@ const getPerfiles=()=>req('/rest/v1/perfiles?select=id,usuario,nombre,rol&order=
 async function login(u,p){const a=await tok('password',{email:String(u).trim().toLowerCase()+DOM,password:p});setAuth(a);
 const[pf]=await req('/rest/v1/perfiles?select=id,usuario,nombre,rol&id=eq.'+a.uid);if(!pf){setAuth(null);throw new Error('Esta cuenta no tiene perfil. Pedile al administrador que la revise.')}setAuth({...AUTH,perfil:pf})}
 async function whoami(){try{const[pf]=await req('/rest/v1/perfiles?select=id,usuario,nombre,rol&id=eq.'+AUTH.uid);if(pf)setAuth({...AUTH,perfil:pf});else setAuth(null)}catch(e){/* sin conexión: usa el perfil guardado */}return AUTH}
-function logout(){if(AUTH)fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+AUTH.access_token}}).catch(()=>{});setAuth(null);lsSet(SK,null);lsSet(PK,null);location.reload()}
+function logout(){if(AUTH)fetch(BASE+'/auth/v1/logout',{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+AUTH.access_token}}).catch(()=>{});setAuth(null);lsSet(SK,pendientes());lsSet(PK,null);location.reload()}
 const ubar=()=>AUTH&&AUTH.perfil?`<div class="ubar"><span>Conectado como <b>${esc(AUTH.perfil.nombre)}</b> <span class="mut">@${esc(AUTH.perfil.usuario)}${AUTH.perfil.rol==='admin'?' · administrador':''}</span></span><button type="button" class="ghost" id="lo">Salir</button></div>`:'';
 const bindUbar=()=>{const b=$('#lo');if(b)b.onclick=logout};
 function gate(v,title,sub,done){v.innerHTML=`<form class="card col login" id="lf"><h2>${title}</h2><p class="mut">${sub}</p>
@@ -144,7 +145,7 @@ location.href=BASE+'/storage/v1'+(j.signedURL||j.signedUrl)+'&download='+encodeU
 catch(err){alert('No se pudo descargar el archivo: '+err.message)}b.innerHTML=old;b.disabled=false});
 /* Sesiones (solo administrador) */
 async function vS(v){
-if(CLOUD&&!AUTH)return gate(v,'Ingresá como administrador','La carga de sesiones es solo para el administrador. Los pilotos ven sus tandas en Drivers.',()=>vS(v));
+if(CLOUD&&!AUTH){const np=pendientes().length;gate(v,'Ingresá como administrador','La carga de sesiones es solo para el administrador. Los pilotos ven sus tandas en Drivers.',()=>vS(v));if(np)$('#lf h2').insertAdjacentHTML('afterend',`<div class="sync warn">Hay ${np} ${np===1?'sesión guardada':'sesiones guardadas'} solo en este navegador. Ingresá como administrador y se suben solas. No borres los datos del navegador hasta que se suban.</div>`);return}
 if(CLOUD){await whoami();if(!AUTH)return vS(v);
 if(AUTH.perfil.rol!=='admin'){v.innerHTML=ubar()+`<div class="card"><h2 class="h2">Solo para el administrador</h2><p>Tus tandas están en tu perfil.</p><a class="cta" href="drivers.html">Ir a Drivers</a></div>`;bindUbar();return}}
 let S=loadS(),P=lsGet(PK,[]),filt='',busy=false,again=false;const open=new Set();
@@ -247,7 +248,7 @@ $('#pl').innerHTML=(ps.length?ps.map(p=>`<div class="acc${p.nombre===ver?' on':'
 <button type="button" class="ghost sm" data-pw="${p.id}" data-n="${esc(p.nombre)}">Contraseña</button><button type="button" class="del" data-rm="${p.id}" data-n="${esc(p.nombre)}" aria-label="Borrar la cuenta de ${esc(p.nombre)}">✕</button></div>`).join(''):'<p class="mut">Todavía no creaste ninguna cuenta.</p>')
 +(()=>{const sin=[...new Set(S.map(x=>x.piloto))].filter(n=>!acc.has(n));return sin.length?`<p class="mut sin">Con sesiones pero sin cuenta: ${sin.map(n=>`<button type="button" class="chipb" data-pre="${esc(n)}">${esc(n)}</button>`).join(' ')}</p>`:''})();
 $('#dln').innerHTML=[...new Set(S.map(x=>x.piloto))].filter(n=>!acc.has(n)).map(n=>`<option value="${esc(n)}">`).join('')};
-async function load(){try{const[r,pf]=await Promise.all([api(COLS),admin?getPerfiles():Promise.resolve(P)]);S=r.map(norm);if(admin){P=pf;lsSet(PK,P);lsSet(SK,S)}
+async function load(){try{const[r,pf]=await Promise.all([api(COLS),admin?getPerfiles():Promise.resolve(P)]);S=r.map(norm);if(admin){P=pf;lsSet(PK,P);const ids=new Set(S.map(x=>x.id));lsSet(SK,[...S,...pendientes().filter(x=>!ids.has(x.id))])}
 const d=new Date();stamp=`Actualizado a las ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}. Se actualiza solo.`}
 catch(e){if(!AUTH){location.reload();return}stamp='Sin conexión: mostrando lo último guardado.'}
 $('#up').textContent=stamp;drawList();drawPf()}
