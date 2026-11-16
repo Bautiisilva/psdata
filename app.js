@@ -50,13 +50,13 @@ rows+=`<tr><td>&nbsp;${l+1}</td>${c('a',st.A,st.la)}${c('b',st.B,st.lb)}</tr>`}
 v.innerHTML=`<div class="two">
 <div class="card"><select id="sa" aria-label="Piloto A">${opts(st.A)}</select><div class="big"><i class="chip" style="background:${A.c}"></i>${fmt(la.time)}</div><div class="mut">${lab(st.A,st.la)}</div></div>
 <div class="card"><select id="sb" aria-label="Piloto B">${opts(st.B)}</select><div class="big"><i class="chip" style="background:${B.c}"></i>${fmt(lb.time)}</div><div class="mut">${lab(st.B,st.lb)}</div></div></div>
-<div class="card"><div class="mut">Mapa de velocidad de ${A.n.split(' ')[0]} · rojo frena, verde agua acelera</div>${mapSVG(la,dot('dB',B.c)+dot('dA',A.c))}</div>
-<div class="card"><div class="mut">Deslizá sobre el gráfico para recorrer la vuelta</div>
+<div class="card chartc"><div class="mut">Deslizá sobre el gráfico para recorrer la vuelta</div>
 <svg id="ch" class="chart" viewBox="0 0 740 300" role="img" aria-label="Velocidad y diferencia de tiempo por metro">${grid}${line(la,A.c)}${line(lb,B.c)}
 <text x="36" y="206">Diferencia de tiempo (s): arriba, ${A.n.split(' ')[0]} va más rápido</text><line x1="36" x2="726" y1="250" y2="250" stroke="var(--line)"/>
 <polyline fill="none" stroke="var(--ink)" stroke-width="2" points="${dl.slice(0,N).map((d,i)=>X(i).toFixed(1)+','+Z(-d).toFixed(1)).join(' ')}"/>
 <line id="cur" y1="6" y2="292" stroke="var(--ink)" stroke-width="1.5"/></svg>
 <div class="read" id="rd"></div></div>
+<div class="card mapc"><div class="mut">Mapa de velocidad de ${A.n.split(' ')[0]} · rojo frena, verde agua acelera</div>${mapSVG(la,dot('dB',B.c)+dot('dA',A.c))}</div>
 <div class="card"><table><tr><th>Vuelta</th><th>${A.n.split(' ')[0]}</th><th>${B.n.split(' ')[0]}</th></tr>${rows}</table></div>`;
 const sc=i=>{st.i=i;$('#cur').setAttribute('x1',X(i));$('#cur').setAttribute('x2',X(i));mv('dA',i);mv('dB',i);
 const d=dl[i];$('#rd').textContent=`${Math.round(i*ds)} m · ${A.n.split(' ')[0]} ${Math.round(la.v[i])} km/h · ${B.n.split(' ')[0]} ${Math.round(lb.v[i])} km/h · ${B.n.split(' ')[0]} ${d>=0?'+':'−'}${Math.abs(d).toFixed(3)} s`};
@@ -101,9 +101,11 @@ else if((m=t.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/))){let a=+m[1],
 else{const w=t.replace(/[,.]/g,' ').split(/\s+/).filter(Boolean);for(const x of w){if(MESN[x])mo=MESN[x];else if(/^\d{4}$/.test(x))y=+x;else if(/^\d{1,2}$/.test(x)&&!d)d=+x}}
 if(!(y>2000&&mo>=1&&mo<=12&&d>=1&&d<=31))return null;return`${y}-${p2(mo)}-${p2(d)}`}
 function csvHora(t){const m=String(t||'').trim().toLowerCase().match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?$/);if(!m)return null;let h=+m[1];const pm=m[3]&&m[3][0]==='p',am=m[3]&&m[3][0]==='a';if(pm&&h<12)h+=12;if(am&&h===12)h=0;return h<24&&+m[2]<60?`${p2(h)}:${m[2]}`:null}
+function csvCells(l,d){const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}else if(ch==='"')q=true;else if(ch===d){out.push(cur.trim());cur=''}else cur+=ch}out.push(cur.trim());return out}
+const csvDelim=t=>{const h=String(t).split(/\r?\n/).find(l=>l.trim())||'';return h.split(';').length>h.split(',').length?';':','};
 function lapsFromCSV(txt){const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/).slice(0,400);if(!lines.length)return null;
 const h=lines.find(l=>l.trim())||'',d=(h.split(';').length>h.split(',').length)?';':',';
-const cells=l=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}else if(ch==='"')q=true;else if(ch===d){out.push(cur.trim());cur=''}else cur+=ch}out.push(cur.trim());return out};
+const cells=l=>csvCells(l,d);
 const row=keys=>{for(const l of lines){const c=cells(l);if(keys.includes((c[0]||'').toLowerCase()))return c.slice(1).filter(x=>x!=='')}return null};
 const toks=a=>a.join(' ').split(d===';'?/[\s;]+/:/[\s,]+/).filter(Boolean).map(t=>d===';'?t.replace(',','.'):t);
 const tsec=t=>{const m=t.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);return m?(+m[1])*60+(+m[2]):/^\d+(\.\d+)?$/.test(t)?+t:NaN};
@@ -329,7 +331,78 @@ const d=new Date();stamp=`Actualizado a las ${String(d.getHours()).padStart(2,'0
 catch(e){if(!AUTH){location.reload();return}stamp='Sin conexión: mostrando lo último guardado.'}draw()}
 $('#rp').onchange=e=>{fP=e.target.value;lsSet('psdata-rank-pista',fP);fD='';draw()};$('#rt').onchange=e=>{fT=e.target.value;lsSet('psdata-rank-tipo',fT);fD='';draw()};$('#rd').onchange=e=>{fD=e.target.value;draw()};
 draw();load();document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});setInterval(()=>{if(!document.hidden)load()},60000);addEventListener('online',load)}
+/* GPS de la tanda: CSV real de la MyChron (Race Studio) */
+function parseTelemetry(txt){
+const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/),d=csvDelim(txt);
+const num=t=>{t=String(t==null?'':t).trim();if(d===';')t=t.replace(',','.');return t===''?NaN:+t};
+let hi=-1;for(let i=0;i<Math.min(lines.length,500);i++){const c=csvCells(lines[i],d).map(x=>x.toLowerCase());if(c.some(x=>/latitud/.test(x))&&c.some(x=>/longitud/.test(x))){hi=i;break}}
+if(hi<0)return{error:'Este CSV no trae datos de GPS (latitud y longitud). En Race Studio 3, exportá el CSV incluyendo los canales GPS.'};
+const H=csvCells(lines[hi],d),find=re=>H.findIndex(x=>re.test(x));
+let unidades=[],start=hi+1;const u=csvCells(lines[hi+1]||'',d);if(u.length&&isNaN(num(u[0]))){unidades=u;start=hi+2}
+const iT=find(/^(time|tiempo)$/i),iLa=find(/latitud/i),iLo=find(/longitud/i);let iS=find(/^gps speed$/i);if(iS<0)iS=find(/speed|velocidad/i);
+const iD=find(/^(distance|distancia)$/i);
+if(iT<0)return{error:'No encontré la columna de tiempo (Time) en el CSV.'};
+const R=[];for(let i=start;i<lines.length;i++){if(!lines[i].trim())continue;const c=csvCells(lines[i],d);const t=num(c[iT]);if(isNaN(t))continue;R.push(c)}
+if(R.length<10)return{error:'El CSV casi no tiene datos.'};
+const chans=[];H.forEach((n,j)=>{if(j===iT||j===iLa||j===iLo||!n)return;let ok=0;for(let k=0;k<R.length;k+=Math.max(1,Math.floor(R.length/50)))if(!isNaN(num(R[k][j])))ok++;if(ok>5)chans.push({j,name:n,unit:unidades[j]||''})});
+const T=[],LA=[],LO=[],V=[],DI=[],CH={};chans.forEach(c=>CH[c.j]=[]);
+R.forEach(c=>{T.push(num(c[iT]));LA.push(num(c[iLa]));LO.push(num(c[iLo]));V.push(iS>=0?num(c[iS]):NaN);DI.push(iD>=0?num(c[iD]):NaN);chans.forEach(ch=>CH[ch.j].push(num(c[ch.j])))});
+const ok=LA.map((a,i)=>Math.abs(a)>0.0001&&Math.abs(LO[i])>0.0001&&!isNaN(a)&&!isNaN(LO[i]));
+if(ok.filter(Boolean).length<10)return{error:'El GPS del CSV no tiene posiciones válidas (¿la MyChron tenía señal de GPS?).'};
+// velocidad desde GPS si no hay canal
+const m=[];const head=lines.slice(0,hi);for(const l of head){const c=csvCells(l,d);if(/^beacon markers$/i.test(c[0]||'')){c.slice(1).join(' ').split(d===';'?/[\s;]+/:/[\s,]+/).forEach(t=>{const x=num(t);if(!isNaN(x))m.push(x)})}}
+return{T,LA,LO,V,DI,CH,chans,ok,markers:m.sort((a,b)=>a-b),speedCol:iS>=0?H[iS]:null,speedUnit:iS>=0?(unidades[iS]||'km/h'):'km/h'}}
+function vGPS(el){
+el.innerHTML=`<section class="card col gpsc"><div class="head"><h2>GPS de la tanda</h2><div class="tools gtools"><select id="gs-ses" aria-label="Sesión guardada" hidden></select><label class="ghost filebtn">Abrir CSV<input type="file" accept=".csv,text/csv" id="gs-file" hidden></label></div></div>
+<div class="gsel" hidden id="gs-sel"><label>Vuelta<select id="gs-lap"></select></label><label>Dato<select id="gs-ch"></select></label></div>
+<div class="gwrap" id="gs-wrap" hidden><div class="gmap" id="gs-map"></div><div class="gchart"><div id="gs-chart"></div><div class="read" id="gs-read"></div></div></div>
+<p class="mut" id="gs-msg"></p></section>`;
+const msg=t=>{$('#gs-msg').textContent=t||''};let TD=null,lap=null,chJ=null,cur=0;
+msg(CLOUD&&AUTH?'Elegí una sesión guardada con su CSV, o abrí un CSV de la compu.':'Abrí un CSV exportado de la MyChron. Si ingresás con tu usuario (en Drivers), también podés elegir tus sesiones guardadas.');
+const vcol=(v,a,b)=>{const t=Math.max(0,Math.min(1,(v-a)/((b-a)||1)));return`rgb(${Math.round(228+(45-228)*t)},${Math.round(56+(212-56)*t)},${Math.round(74+(191-74)*t)})`};
+function laps(){const T=TD.T,m=TD.markers,out=[];if(m.length>=2){for(let k=0;k+1<m.length;k++){const a=T.findIndex(t=>t>=m[k]);let b=T.findIndex(t=>t>=m[k+1]);if(b<0)b=T.length;if(a>=0&&b-a>5)out.push({n:k+1,a,b,t:m[k+1]-m[k]})}}
+if(!out.length)out.push({n:0,a:0,b:T.length,t:T[T.length-1]-T[0]});return out}
+let L=[];
+function load(txt,nombre){const r=parseTelemetry(txt);if(r.error){$('#gs-wrap').hidden=true;$('#gs-sel').hidden=true;msg(r.error);return}
+TD=r;L=laps();const best=L.reduce((p,q)=>q.n&&(!p.n||q.t<p.t)?q:p,L[0]);lap=best;
+$('#gs-lap').innerHTML=L.map((x,i)=>`<option value="${i}"${x===best?' selected':''}>${x.n?`Vuelta ${x.n} · ${fmtLap(x.t)}${x===best&&L.length>1?' (mejor)':''}`:'Toda la sesión'}</option>`).join('');
+const sp=TD.chans.find(c=>c.name===TD.speedCol);chJ=sp?sp.j:(TD.chans[0]||{}).j;
+$('#gs-ch').innerHTML=TD.chans.map(c=>`<option value="${c.j}"${c.j===chJ?' selected':''}>${esc(c.name)}${c.unit?' ('+esc(c.unit)+')':''}</option>`).join('');
+$('#gs-wrap').hidden=false;$('#gs-sel').hidden=false;msg((nombre?nombre+' · ':'')+`${L.filter(x=>x.n).length||1} ${L.filter(x=>x.n).length===1?'vuelta':'vueltas'} · ${TD.T.length} puntos de GPS. Mové el cursor sobre el gráfico (o tocá la pista) para ver dónde estaba el kart.`);draw()}
+let P=null,VB=null;
+function proj(){const ii=TD.LA.map((_,i)=>i).filter(i=>TD.ok[i]),la0=ii.reduce((s,i)=>s+TD.LA[i],0)/ii.length,lo0=ii.reduce((s,i)=>s+TD.LO[i],0)/ii.length,k=Math.cos(la0*Math.PI/180);
+P=TD.LA.map((a,i)=>TD.ok[i]?[(TD.LO[i]-lo0)*k*111320,-(a-la0)*110540]:null);const xs=ii.map(i=>P[i][0]),ys=ii.map(i=>P[i][1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.06;VB=[x0-pad,y0-pad,x1-x0+2*pad,y1-y0+2*pad]}
+function draw(){proj();const s=Math.max(VB[2],VB[3])/100,a=lap.a,b=lap.b,V=TD.V,vs=V.slice(a,b).filter(x=>!isNaN(x)),vmin=vs.length?Math.min(...vs):0,vmax=vs.length?Math.max(...vs):1;
+const all=P.filter(Boolean).map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L');
+const step=Math.max(1,Math.ceil((b-a)/700));let seg='';for(let i=a;i+step<b;i+=step){const p=P[i],q=P[i+step];if(p&&q)seg+=`<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${isNaN(V[i])?'var(--acc)':vcol(V[i],vmin,vmax)}" stroke-width="${(s*1.1).toFixed(2)}" stroke-linecap="round"/>`}
+const p0=P.slice(a,b).find(Boolean)||[0,0];
+$('#gs-map').innerHTML=`<svg viewBox="${VB.map(x=>x.toFixed(1)).join(' ')}" class="gsvg" role="img" aria-label="Trazado GPS de la vuelta"><path d="M${all}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round" stroke-linecap="round"/>${seg}<circle cx="${p0[0].toFixed(1)}" cy="${p0[1].toFixed(1)}" r="${(s*.9).toFixed(2)}" fill="none" stroke="var(--ink)" stroke-width="${(s*.4).toFixed(2)}"/><circle id="gs-dot" r="${(s*1.6).toFixed(2)}" fill="var(--mv)" stroke="var(--surf)" stroke-width="${(s*.5).toFixed(2)}"/></svg>
+<div class="gleg mut"><span class="lg" style="background:rgb(228,56,74)"></span>más lento<span class="lg" style="background:rgb(45,212,191)"></span>más rápido</div>`;
+drawChart();setCur(a)}
+let CX=null;
+function drawChart(){const a=lap.a,b=lap.b,Y=TD.CH[chJ]||[],T=TD.T,t0=T[a],dur=T[b-1]-t0||1,ys=Y.slice(a,b).filter(x=>!isNaN(x));let y0=ys.length?Math.min(...ys):0,y1=ys.length?Math.max(...ys):1;const pd=(y1-y0)*.08||1;y0-=pd;y1+=pd;
+const X=t=>44+(t-t0)/dur*680,YY=v=>12+(y1-v)/(y1-y0)*236;CX={X,t0,dur};
+const step=Math.max(1,Math.ceil((b-a)/900));let pts='';for(let i=a;i<b;i+=step)if(!isNaN(Y[i]))pts+=X(T[i]).toFixed(1)+','+YY(Y[i]).toFixed(1)+' ';
+let grid='';for(let k=0;k<=4;k++){const v=y0+(y1-y0)*k/4;grid+=`<line x1="44" x2="724" y1="${YY(v)}" y2="${YY(v)}" stroke="var(--line)"/><text x="0" y="${YY(v)+4}">${Math.abs(v)>=100?Math.round(v):v.toFixed(1)}</text>`}
+const tk=dur>120?30:dur>40?10:5;for(let t=0;t<=dur;t+=tk)grid+=`<text x="${X(t0+t)-6}" y="268">${t}s</text>`;
+const c=TD.chans.find(x=>x.j===chJ)||{name:'',unit:''};
+$('#gs-chart').innerHTML=`<svg viewBox="0 0 740 276" class="chart gchartsvg" id="gs-svg" role="img" aria-label="${esc(c.name)} durante la vuelta">${grid}<polyline fill="none" stroke="var(--acc)" stroke-width="2" points="${pts}"/><line id="gs-cur" y1="8" y2="252" stroke="var(--mv)" stroke-width="2"/></svg>`;
+const svg=$('#gs-svg'),mv=e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*740,t=t0+(x-44)/680*dur;let i=a;while(i<b-1&&T[i]<t)i++;setCur(i)};
+svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',mv)}
+function setCur(i){cur=i;const p=P[i],dot=$('#gs-dot');if(p&&dot){dot.setAttribute('cx',p[0]);dot.setAttribute('cy',p[1])}
+const x=CX.X(TD.T[i]);$('#gs-cur').setAttribute('x1',x);$('#gs-cur').setAttribute('x2',x);
+const c=TD.chans.find(x=>x.j===chJ)||{name:'',unit:''},val=(TD.CH[chJ]||[])[i],dist=!isNaN(TD.DI[i])&&!isNaN(TD.DI[lap.a])?TD.DI[i]-TD.DI[lap.a]:null;
+$('#gs-read').textContent=`${lap.n?'Vuelta '+lap.n+' · ':''}${(TD.T[i]-TD.T[lap.a]).toFixed(2)} s${dist!=null?' · '+Math.round(dist)+' m':''}${!isNaN(TD.V[i])&&c.name!==TD.speedCol?' · '+Math.round(TD.V[i])+' '+TD.speedUnit:''} · ${c.name}: ${isNaN(val)?'—':(Math.abs(val)>=100?Math.round(val):val.toFixed(1))}${c.unit?' '+c.unit:''}`}
+$('#gs-map').addEventListener('pointerdown',e=>{const svg=e.target.closest('svg');if(!svg||!TD)return;const r=svg.getBoundingClientRect(),sc=Math.max(VB[2]/r.width,VB[3]/r.height),ox=VB[0]+(VB[2]-r.width*sc)/2,oy=VB[1]+(VB[3]-r.height*sc)/2,x=ox+(e.clientX-r.left)*sc,y=oy+(e.clientY-r.top)*sc;
+let bi=lap.a,bd=1e18;for(let i=lap.a;i<lap.b;i++){const p=P[i];if(!p)continue;const dd=(p[0]-x)**2+(p[1]-y)**2;if(dd<bd){bd=dd;bi=i}}setCur(bi)});
+$('#gs-lap').onchange=e=>{lap=L[+e.target.value];draw()};$('#gs-ch').onchange=e=>{chJ=+e.target.value;drawChart();setCur(Math.max(lap.a,Math.min(cur,lap.b-1)))};
+$('#gs-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;msg('Leyendo '+f.name+'…');try{load(await f.text(),f.name)}catch(err){msg('No pude leer el archivo: '+err.message)}e.target.value=''};
+if(CLOUD&&AUTH){(async()=>{try{const rows=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc);if(!rows.length)return;const sel=$('#gs-ses');
+sel.innerHTML='<option value="">Elegí una sesión…</option>'+rows.map(x=>`<option value="${esc(x.id)}">${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+esc(x.pista):''}</option>`).join('');sel.hidden=false;
+sel.onchange=async()=>{const x=rows.find(r=>r.id===sel.value);if(!x)return;msg('Bajando el CSV de '+x.piloto+'…');try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});
+const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);load(await r.text(),`${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}`)}catch(err){msg('No se pudo bajar el archivo: '+err.message)}}}catch(e){}})()}}
 const pg=document.body.dataset.page;
 const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,r:vR,s:vS,d:vDr}[pg];
 const view=()=>{stop();fn($('#view'))};
 if(fn&&$('#view'))view();
+if(pg==='a'&&$('#gpsv'))vGPS($('#gpsv'));

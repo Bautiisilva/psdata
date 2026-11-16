@@ -173,5 +173,24 @@ button.file:disabled{opacity:.6;cursor:wait}
 .tandas b.tl{color:var(--mv);font-family:inherit;font-size:inherit}
 /* Mismo ancho en todas las páginas: contenido de Inicio y Análisis */
 @media(min-width:900px){.feat{grid-template-columns:repeat(2,1fr)}.feat .card{display:flex;flex-direction:column}.feat .card .cta{margin-top:auto;align-self:flex-start}}
-@media(min-width:1100px){body[data-page="a"] #view{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}body[data-page="a"] #view>.card{margin-bottom:0}body[data-page="a"] #view>.two,body[data-page="a"] #view>.card:last-child{grid-column:1/-1}body[data-page="a"] #view>.two .card{margin-bottom:0}}
+@media(min-width:1100px){body[data-page="a"] #view{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}body[data-page="a"] #view>.card{margin-bottom:0}body[data-page="a"] #view>.two,body[data-page="a"] #view>.chartc{grid-column:1/-1}body[data-page="a"] #view>.two .card{margin-bottom:0}}
 body[data-page="h"] #view{max-width:980px;margin-inline:auto}
+/* GPS de la tanda */
+.gpsc{margin-bottom:16px}
+.gtools{align-items:center}
+.filebtn{display:inline-flex;align-items:center;cursor:pointer}
+.filebtn:focus-within{outline:2px solid var(--acc);outline-offset:2px}
+#gs-ses{max-width:280px}
+.gsel{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.gsel label{color:var(--mut);font-size:13px}
+.gsel select{margin-top:4px}
+.gwrap{display:grid;gap:12px}
+.gmap svg{width:100%;max-height:380px;touch-action:none;cursor:crosshair}
+.gleg{display:flex;align-items:center;gap:6px;font-size:12px;justify-content:center;margin-top:4px}
+.gleg .lg{display:inline-block;width:14px;height:6px;border-radius:3px;margin-left:8px}
+.gchartsvg{touch-action:pan-y}
+.gchartsvg text{fill:var(--mut);font:12px Barlow,sans-serif}
+.demo{margin:8px 0 10px;font-size:22px}
+.demo .mut{font:400 14px Barlow,sans-serif}
+[hidden]{display:none!important}
+@media(min-width:900px){.gwrap{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);align-items:center}}
