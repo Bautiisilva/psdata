@@ -97,7 +97,13 @@ const fdate=d=>{const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y};
 const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
 const api=(q,o={})=>fetch(CFG.url.replace(/\/+$/,'')+'/rest/v1/sesiones'+q,{...o,headers:{apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key}),'Content-Type':'application/json',...(o.headers||{})}})
 .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}).then(t=>t?JSON.parse(t):null);
-const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor});
+const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null});
+const BK='archivos',MAXF=50*1024*1024;
+const slug=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'archivo';
+const stor=(path,o={})=>fetch(CFG.url.replace(/\/+$/,'')+'/storage/v1/object/'+BK+'/'+path,{...o,headers:{apikey:CFG.key,...(CFG.key.startsWith('sb_')?{}:{Authorization:'Bearer '+CFG.key}),...(o.headers||{})}}).then(r=>{if(!r.ok)return r.text().then(t=>{throw new Error('HTTP '+r.status+' '+t.slice(0,120))});return r});
+const furl=x=>CFG.url.replace(/\/+$/,'')+'/storage/v1/object/public/'+BK+'/'+x.archivo+'?download='+encodeURIComponent(x.archivo_nombre||'archivo');
+const flink=(x,txt)=>x.archivo&&CLOUD?`<a class="file" href="${esc(furl(x))}" download="${esc(x.archivo_nombre||'')}" title="Descargar ${esc(x.archivo_nombre||'archivo')}">${txt}</a>`:'';
+const fsize=n=>n<1048576?Math.max(1,Math.round(n/1024))+' KB':(n/1048576).toFixed(1)+' MB';
 function vS(v){let S=loadS(),filt='',busy=false,again=false;const open=new Set();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 const now=new Date(),pad=n=>String(n).padStart(2,'0'),hoy=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
@@ -109,11 +115,12 @@ v.innerHTML=`<div class="ses"><form class="card col" id="fs" autocomplete="off">
 <label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label>
 <label>Tipo de kart<select name="tipo" required><option value="" disabled${TIPOS.includes(lastOf('tipo'))?'':' selected'}>Elegí el tipo de kart</option>${TIPOS.map(t=>`<option${t===lastOf('tipo')?' selected':''}>${t}</option>`).join('')}</select></label>
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
-<button class="cta" type="submit">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
+<label class="drop">Archivo del logger <span class="opt">(opcional)</span><input name="archivo" type="file" id="fa"><span class="fn" id="fn">Tocá para elegir el archivo exportado (MyChron, AiM…)</span></label>
+<button class="cta" type="submit" id="gs">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
 <div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
 <div class="tools"><select id="fp" aria-label="Filtrar por piloto"></select><button type="button" class="ghost" id="csv">Exportar CSV</button></div></div>
 <div class="sync" id="sync" role="status"></div>
-<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Kart</th><th>Tipo</th><th>Motor</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
+<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th>Kart</th><th>Tipo</th><th>Motor</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
 <aside class="card col" aria-labelledby="dh"><h2 id="dh">Drivers sessions</h2><div id="dv"></div></aside></div>
 <div id="dls"></div>`;
 const setSt=(k,t)=>{const e=$('#sync');e.className='sync '+k;e.textContent=t};
@@ -124,19 +131,19 @@ const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(
 $('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc),dc=D.find(d=>d.n===n);
 return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary><i class="chip" style="background:${dc?dc.c:'var(--acc)'}"></i><span class="dn">${esc(n)}</span><span class="dc">${a.length} ${a.length===1?'tanda':'tandas'}</span></summary>
 <dl class="dinfo"><div><dt>Última</dt><dd>${fdate(a[0].fecha)}</dd></div><div><dt>Kart habitual</dt><dd>#${esc(top(a,'kart'))}</dd></div><div><dt>Tipo</dt><dd>${esc(top(a,'tipo'))}</dd></div><div><dt>Motor</dt><dd>${esc(top(a,'motor'))}</dd></div></dl>
-<ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}</span></li>`).join('')}</ol></details>`}).join('')
+<ol class="tandas">${a.map((x,k)=>`<li><b>Tanda ${a.length-k}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
 :'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(desc);
 $('#cnt').textContent='· '+rows.length;
-$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="7" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
+$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td>${esc(x.motor)}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="8" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
 $('#dls').innerHTML=dl('dlp',[...D.map(d=>d.n),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
-if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,kart:parseInt(x.kart,10)||0})))});
-const rows=(await api('?select=id,piloto,fecha,hora,kart,tipo,motor')).map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
+if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,kart:parseInt(x.kart,10)||0})))});
+const rows=(await api('?select=id,piloto,fecha,hora,kart,tipo,motor,archivo,archivo_nombre')).map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
 S=[...rows,...S.filter(x=>x.p&&!ids.has(x.id)&&!sent.has(x.id))];saveS(S);
 setSt('ok',`Guardado en la nube · ${S.length} ${S.length===1?'sesión':'sesiones'}`)}
 catch(e){setSt('err',`Sin conexión con la base de datos (${e.message}). Las sesiones quedan en este dispositivo y se suben solas cuando vuelva la conexión.`)}
@@ -144,14 +151,26 @@ busy=false;draw();if(again){again=false;sync()}}
 draw();if(CLOUD)sync();else local();
 addEventListener('online',sync);document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});setInterval(()=>{if(!document.hidden)sync()},60000);
 $('#dv').addEventListener('toggle',e=>{const n=e.target.dataset.n;if(n!==undefined)e.target.open?open.add(n):open.delete(n)},true);
-$('#fs').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)).trim());
-if(!x.piloto||!x.tipo||!x.motor)return;S.push(x);const ok=saveS(S);open.add(x.piloto);
-$('#msg').textContent=ok?`Sesión de ${x.piloto} guardada.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
+const fin=$('#fa'),fnl=$('#fn'),fdef=fnl.textContent;
+fin.onchange=()=>{const fl=fin.files[0];fnl.textContent=fl?`${fl.name} · ${fsize(fl.size)}`:fdef;fnl.parentElement.classList.toggle('has',!!fl)};
+$('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1};['piloto','fecha','hora','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)).trim());
+if(!x.piloto||!x.tipo||!x.motor)return;const fl=fin.files[0],btn=$('#gs');
+if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
+if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
+const m=fl.name.match(/\.([A-Za-z0-9]{1,8})$/),ext=m?'.'+m[1].toLowerCase():'';
+const path=`${slug(x.piloto)}/${x.fecha}_${x.hora.replace(':','')}_kart${slug(x.kart)}_${x.id.slice(0,8)}${ext}`;
+btn.disabled=true;btn.textContent='Subiendo archivo…';$('#msg').textContent='';
+try{await stor(path,{method:'POST',headers:{'Content-Type':fl.type||'application/octet-stream','x-upsert':'false'},body:fl})}
+catch(err){btn.disabled=false;btn.textContent='Guardar sesión';$('#msg').textContent='No se pudo subir el archivo. Revisá la conexión y probá de nuevo. ('+err.message+')';return}
+btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;x.archivo_nombre=`${x.piloto} - ${x.fecha} ${x.hora.replace(':','.')} - kart ${x.kart}${ext}`}
+S.push(x);const ok=saveS(S);open.add(x.piloto);fin.value='';fin.onchange();
+$('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':''}.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
 $('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
 if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
+if(CLOUD&&x.archivo)stor(x.archivo,{method:'DELETE'}).catch(()=>{});
 S=S.filter(s=>s.id!==x.id);saveS(S);$('#msg').textContent='Sesión borrada.';draw()};
-$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Kart','Tipo de kart','Motor'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.kart,x.tipo,x.motor])];
+$('#csv').onclick=()=>{const q=t=>'"'+String(t).replace(/"/g,'""')+'"',rows=[['Piloto','Fecha','Hora','Kart','Tipo de kart','Motor','Archivo'],...S.filter(x=>!filt||x.piloto===filt).sort(desc).map(x=>[x.piloto,x.fecha,x.hora,x.kart,x.tipo,x.motor,x.archivo&&CLOUD?furl(x):''])];
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')],{type:'text/csv'}));a.download='sesiones-psdata.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
 const pg=document.body.dataset.page;
 const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:vA,l:vL,r:vR,s:vS}[pg];
