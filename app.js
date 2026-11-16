@@ -476,7 +476,7 @@ $('#co-tree').innerHTML=Object.keys(g).sort((a,b)=>a.localeCompare(b)).map(p=>`<
 $('#co-tree').addEventListener('toggle',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p!==undefined)e.target.open?open.add(p):open.delete(p)},true);
 $('#co-tree').onclick=e=>{const b=e.target.closest('.ctan');if(!b)return;cur=b.dataset.id;lsSet('psdata-coach',cur);refId='';tree();run();if(innerWidth<1100)$('#co-tit').scrollIntoView({behavior:'smooth'})};
 $('#co-ref').onchange=e=>{refId=e.target.value;run()};
-$('#co-dl').onclick=()=>{if(!obsCache)return;const x=S.find(s=>s.id===cur),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+obsCache],{type:'text/plain'}));a.download=`Observaciones - ${x.piloto} - ${x.fecha}${x.tanda?' - tanda '+x.tanda:''}.txt`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('#co-dl').onclick=()=>{if(!obsCache)return;const x=S.find(s=>s.id===cur),a=document.createElement('a');const txt=window.LANG==='en'&&window.TR?obsCache.split('\r\n').map(l=>window.TR(l)).join('\r\n'):obsCache;a.href=URL.createObjectURL(new Blob(['\ufeff'+txt],{type:'text/plain'}));a.download=`${window.LANG==='en'?'Notes':'Observaciones'} - ${x.piloto} - ${x.fecha}${x.tanda?' - tanda '+x.tanda:''}.txt`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 let rid=0;
 async function run(){const my=++rid,x=S.find(s=>s.id===cur);$('#co-tit').textContent=x.piloto;$('#co-sub').textContent=lbl(x);
 const cands=S.filter(s=>s.id!==x.id&&(!x.pista||s.pista===x.pista));const sug=cands.filter(s=>s.piloto!==x.piloto&&s.tipo===x.tipo&&s.mejor_vuelta!=null&&(x.mejor_vuelta==null||s.mejor_vuelta<x.mejor_vuelta)).sort((a,b)=>a.mejor_vuelta-b.mejor_vuelta)[0];
