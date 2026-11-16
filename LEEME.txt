@@ -15,3 +15,5 @@ CUENTAS (Drivers)
 9. Creá tu usuario de administrador corriendo (con tu usuario y contraseña):
    select public.crear_usuario('tu-usuario', 'tu-contraseña', 'Administrador', 'admin');
 10. Entrá a Drivers con ese usuario y creá la cuenta de cada piloto.
+
+Nota: al cambiar app.js, style.css o config.js, actualizá el número ?v= en los .html para que los celulares bajen la versión nueva.
