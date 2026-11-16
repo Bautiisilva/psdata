@@ -48,3 +48,5 @@ notify pgrst, 'reload schema';
 -- RANKING (agregado después): ver ranking.sql
 
 -- TANDA (agregado después): ver tanda.sql
+
+-- VUELTA TEÓRICA (agregado después): ver teorica.sql

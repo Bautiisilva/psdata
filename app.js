@@ -82,8 +82,8 @@ const flong=d=>{const[y,m,dd]=d.split('-').map(Number),w=new Date(y,m-1,dd).getD
 const tC=x=>{const t=Date.parse(x.creado||'');return isNaN(t)?0:t};
 const porCarga=(a,b)=>(tC(b)-tC(a))||(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
 const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)||((+b.tanda||0)-(+a.tanda||0));
-const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null,tanda:x.tanda!=null?Number(x.tanda):null,creado:x.creado||null,vueltas:Array.isArray(x.vueltas)?x.vueltas.map(Number):null});
-const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta,vueltas,tanda,creado';
+const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null,tanda:x.tanda!=null?Number(x.tanda):null,creado:x.creado||null,vuelta_teorica:x.vuelta_teorica!=null?Number(x.vuelta_teorica):null,microsectores:x.microsectores||null,vueltas:Array.isArray(x.vueltas)?x.vueltas.map(Number):null});
+const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta,vueltas,tanda,creado,vuelta_teorica,microsectores';
 const BK='archivos',MAXF=50*1024*1024;
 const slug=t=>String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'archivo';
 const fsize=n=>n<1048576?Math.max(1,Math.round(n/1024))+' KB':(n/1048576).toFixed(1)+' MB';
@@ -177,10 +177,11 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <label>Mejor vuelta <span class="opt">(se completa sola con el CSV)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 1:05.300"></label><div class="mut csvi" id="csvi"></div>
 <label class="drop">Archivo del logger <span class="opt">(opcional)</span><input name="archivo" type="file" id="fa"><span class="fn" id="fn">Tocá para elegir el archivo exportado (MyChron, AiM…)</span></label>
 <button class="cta" type="submit" id="gs">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
-<div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
+<div class="stack"><div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
 <div class="tools"><select id="fp" aria-label="Filtrar por piloto"></select><button type="button" class="ghost" id="csv">Exportar CSV</button></div></div>
 <div class="sync" id="sync" role="status"></div>
-<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th class="c">Tanda</th><th>Pista</th><th>Kart</th><th>Tipo</th><th>Mejor vuelta</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
+<div class="tw"><table class="db"><thead><tr><th>Piloto</th><th>Fecha</th><th>Hora</th><th class="c">Tanda</th><th>Pista</th><th>Kart</th><th>Tipo</th><th>Mejor vuelta</th><th>Teórica</th><th>Archivo</th><th></th></tr></thead><tbody id="tb"></tbody></table></div></div>
+<div class="card col teoc"><div class="head"><h2>Vuelta teórica</h2><select id="teo-s" aria-label="Tanda"></select></div><p class="mut sm">Juntando los mejores microsectores de todas las vueltas de una tanda: la vuelta más rápida que el piloto ya hizo por partes.</p><div id="teo-v"></div></div></div>
 <aside class="card col" aria-labelledby="dh"><h2 id="dh">Drivers sessions</h2><div id="dv"></div></aside></div>
 <div id="dls"></div>`;bindUbar();
 const setSt=(k,t)=>{const e=$('#sync');e.className='sync '+k;e.textContent=t};
@@ -208,12 +209,12 @@ const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.in
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(porCarga);
 $('#cnt').textContent='· '+rows.length;
-$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?x.tanda:'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="10" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
+$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?x.tanda:'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td class="teo">${x.vuelta_teorica!=null?fmtLap(x.vuelta_teorica):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="11" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
 $('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
-drawD()};
+drawD();drawTeoSel()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);
-if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?x.mejor_vuelta:null,tanda:x.tanda!=null?+x.tanda:null,vueltas:Array.isArray(x.vueltas)?x.vueltas:null,kart:parseInt(x.kart,10)||0})))});
+if(pend.length)await api('?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(pend.map(({p,...x})=>({...x,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?x.mejor_vuelta:null,tanda:x.tanda!=null?+x.tanda:null,vuelta_teorica:x.vuelta_teorica!=null?x.vuelta_teorica:null,microsectores:x.microsectores||null,vueltas:Array.isArray(x.vueltas)?x.vueltas:null,kart:parseInt(x.kart,10)||0})))});
 const[rows0,pf]=await Promise.all([api(COLS),getPerfiles()]),rows=rows0.map(norm),ids=new Set(rows.map(x=>x.id)),sent=new Set(pend.map(x=>x.id));
 S=[...rows,...S.filter(x=>x.p&&!ids.has(x.id)&&!sent.has(x.id))];saveS(S);P=pf;lsSet(PK,P);
 setSt('ok',`Guardado en la nube · ${S.length} ${S.length===1?'sesión':'sesiones'}`)}
@@ -243,10 +244,24 @@ const path=`${slug(x.piloto)}/${x.fecha}_${x.hora.replace(':','')}_kart${slug(x.
 btn.disabled=true;btn.textContent='Subiendo archivo…';$('#msg').textContent='';
 try{await stor(path,{method:'POST',headers:{'Content-Type':fl.type||'application/octet-stream','x-upsert':'false'},body:fl})}
 catch(err){btn.disabled=false;btn.textContent='Guardar sesión';$('#msg').textContent='No se pudo subir el archivo. Revisá la conexión y probá de nuevo. ('+err.message+')';return}
-btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;x.archivo_nombre=`${x.piloto} - ${x.fecha} - tanda ${x.tanda} - kart ${x.kart}${ext}`}
+btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;try{if(/\.csv$/i.test(fl.name)){const th=teorica(await fl.text());if(th){x.vuelta_teorica=th.teorica;x.microsectores=th}}}catch(err){}x.archivo_nombre=`${x.piloto} - ${x.fecha} - tanda ${x.tanda} - kart ${x.kart}${ext}`}
 S.push(x);const ok=saveS(S);open.add(x.piloto);fin.value='';fin.onchange();e.target.mv.value='';tTouched=false;sugT();
 $('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':''}.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
+let teoId='',teoRun=0;
+function drawTeoSel(){const sel=$('#teo-s');if(!sel)return;const cs=S.filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)&&!x.p).sort(porCarga);
+if(!cs.length){sel.hidden=true;$('#teo-v').innerHTML='<p class="mut">Cuando guardes una sesión con el CSV de la MyChron, acá aparece su vuelta teórica.</p>';return}
+sel.hidden=false;if(!cs.some(x=>x.id===teoId)){teoId=cs[0].id;setTimeout(showTeo)}
+sel.innerHTML=cs.map(x=>`<option value="${esc(x.id)}"${x.id===teoId?' selected':''}>${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · Tanda '+x.tanda:''}</option>`).join('')}
+async function showTeo(){const my=++teoRun,x=S.find(s=>s.id===teoId),v=$('#teo-v');if(!x)return;let th=x.microsectores&&x.microsectores.s?x.microsectores:null;
+if(!th){v.innerHTML='<p class="mut">Calculando con el CSV…</p>';try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);th=teorica(await r.text())}catch(e){if(my===teoRun)v.innerHTML=`<p class="mut">No se pudo calcular: ${esc(e.message)}</p>`;return}
+if(my!==teoRun)return;if(!th){v.innerHTML='<p class="mut">Este CSV no trae vueltas completas para calcular la vuelta teórica.</p>';return}
+x.vuelta_teorica=th.teorica;x.microsectores=th;saveS(S);draw();api('?id=eq.'+encodeURIComponent(x.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({vuelta_teorica:th.teorica,microsectores:th})}).catch(()=>{})}
+if(my!==teoRun)return;const gan=th.mejor-th.teorica<0.0025?0:th.mejor-th.teorica,st=(k,val,c='')=>`<div class="st ${c}"><div class="big">${val}</div><div class="mut">${k}</div></div>`;
+const fuente={mychron:'Microsectores configurados en la MyChron.',tramos:'El CSV no trae los splits de la MyChron: la vuelta se dividió en 10 tramos iguales.',vueltas:'El CSV no trae microsectores ni GPS: la vuelta teórica es la mejor vuelta.'}[th.f]||'';
+v.innerHTML=`<div class="stats">${st('vuelta teórica',fmtLap(th.teorica),'teo')}${st('mejor vuelta (V'+th.mejorN+')',fmtLap(th.mejor),'mv')}${st('para ganar',gan.toFixed(3)+' s')}${st('vueltas',th.vueltas)}</div>
+${th.s.length>1?`<table class="db sect"><thead><tr><th>Microsector</th><th>Mejor tiempo</th><th>En la vuelta</th><th>En su mejor vuelta</th></tr></thead><tbody>${th.s.map((q,i)=>`<tr><td>${i+1}</td><td class="teo">${q[0].toFixed(3)}</td><td>${q[1]}</td><td class="mut">${q[2].toFixed(3)}${q[2]-q[0]>0.0005?` <span class="gn">+${(q[2]-q[0]).toFixed(3)}</span>`:''}</td></tr>`).join('')}<tr class="tot"><td>Total</td><td class="teo">${fmtLap(th.teorica)}</td><td></td><td class="mut">${fmtLap(th.mejor)}</td></tr></tbody></table>`:''}<p class="mut sm">${fuente}</p>`}
+$('#teo-s').onchange=e=>{teoId=e.target.value;showTeo()};
 $('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
 if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
 if(CLOUD&&x.archivo){$('#msg').textContent='Borrando archivo…';await stor(x.archivo,{method:'DELETE'}).catch(()=>{})}
@@ -505,6 +520,25 @@ const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?'Tanda '+x.tanda:'sin tanda'} · ${
 tree();run();
 const refresh=async()=>{if(document.hidden)return;try{const n=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc);if(n.map(x=>x.id).join()!==S.map(x=>x.id).join()){S=n;tree()}}catch(e){}};
 setInterval(refresh,60000);document.addEventListener('visibilitychange',refresh)}
+/* Vuelta teórica: mejores microsectores de una tanda */
+function csvMarkers(txt){const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/).slice(0,500),d=csvDelim(txt),num=t=>{t=String(t).trim();if(d===';')t=t.replace(',','.');return t===''?NaN:+t},out={beacon:[],split:[]};
+for(const l of lines){const c=csvCells(l,d),k=(c[0]||'').toLowerCase();const k2=/^beacon markers$/.test(k)?'beacon':/^(split|sector) markers$/.test(k)?'split':null;if(!k2)continue;
+c.slice(1).join(' ').split(d===';'?/[\s;]+/:/[\s,]+/).forEach(t=>{const x=num(t);if(!isNaN(x))out[k2].push(x)})}
+out.beacon.sort((a,b)=>a-b);out.split.sort((a,b)=>a-b);return out}
+function teorica(txt){const mk=csvMarkers(txt),B=mk.beacon;
+const fin=(f,laps,secs)=>{const best=laps.reduce((p,q)=>q.t<p.t?q:p,laps[0]);const s=secs[0].map((_,k)=>{let bt=Infinity,bl=0;secs.forEach((row,i)=>{if(row[k]<bt){bt=row[k];bl=laps[i].n}});return[Math.round(bt*1000)/1000,bl,Math.round(secs[laps.indexOf(best)][k]*1000)/1000]});
+return{f,s,teorica:Math.min(Math.round(best.t*1000)/1000,Math.round(s.reduce((a,x)=>a+x[0],0)*1000)/1000),mejor:Math.round(best.t*1000)/1000,mejorN:best.n,vueltas:laps.length}};
+const lapsB=[];for(let k=0;k+1<B.length;k++){const t=B[k+1]-B[k];if(t>5&&t<600)lapsB.push({n:k+1,a:B[k],b:B[k+1],t})}
+// 1) splits configurados en la MyChron
+if(mk.split.length&&lapsB.length){const rows=lapsB.map(l=>{const sp=mk.split.filter(x=>x>l.a+0.05&&x<l.b-0.05),pts=[l.a,...sp,l.b];return pts.slice(1).map((x,i)=>x-pts[i])});
+const cnt={};rows.forEach(r=>cnt[r.length]=(cnt[r.length]||0)+1);const nS=+Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0];
+const ok=lapsB.map((l,i)=>({l,r:rows[i]})).filter(x=>x.r.length===nS);if(nS>1&&ok.length)return fin('mychron',ok.map(x=>x.l),ok.map(x=>x.r))}
+// 2) 10 tramos iguales con distancia / GPS
+const TD=parseTelemetry(txt);
+if(!TD.error){const L=telLaps(TD).filter(l=>l.n);if(L.length){const NS=10,secs=L.map(l=>{const tr=lapTrace(TD,l,400),N=tr.t.length-1;return Array.from({length:NS},(_,k)=>tr.t[Math.round((k+1)/NS*N)]-tr.t[Math.round(k/NS*N)])});return fin('tramos',L,secs)}}
+// 3) solo vueltas
+if(lapsB.length)return fin('vueltas',lapsB,lapsB.map(l=>[l.t]));
+return null}
 /* GPS de la tanda: CSV real de la MyChron (Race Studio) */
 function parseTelemetry(txt){
 const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/),d=csvDelim(txt);
