@@ -176,6 +176,7 @@
     'Microsectores configurados en la MyChron.': 'Microsectors set up on the MyChron.',
     'El CSV no trae los splits de la MyChron: la vuelta se dividió en 10 tramos iguales.': 'The CSV doesn’t include the MyChron splits: the lap was split into 10 equal parts.',
     'El CSV no trae microsectores ni GPS: la vuelta teórica es la mejor vuelta.': 'The CSV has no microsectors or GPS: the theoretical lap is the best lap.',
+    'Ingresá con tu usuario (en Drivers) para ver la vuelta teórica de tus sesiones.': 'Sign in (in Drivers) to see the theoretical lap of your sessions.',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
