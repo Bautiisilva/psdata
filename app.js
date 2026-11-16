@@ -86,7 +86,7 @@ function vR(v){const o=[...D.keys()].sort((a,b)=>D[b].pts-D[a].pts),mx=Math.max(
 v.innerHTML=`<div class="card"><table><tr><th>Piloto</th><th>Pts</th><th>Mejor vuelta</th><th>Regularidad</th></tr>${o.map((i,k)=>{const d=D[i];return`<tr><td style="padding:10px 4px"><b style="font:700 18px 'Barlow Condensed',sans-serif">${k+1}</b> <i class="chip" style="background:${d.c}"></i>${d.n}</td><td>${d.pts}</td><td style="font-family:'Barlow Condensed',sans-serif;font-size:17px">${fmt(d.best.time)}</td><td><div class="bar" title="σ ${d.sd.toFixed(3)} s"><i style="width:${100-d.sd/mx*70}%;background:${d.c}"></i></div></td></tr>`}).join('')}</table>
 <p class="mut">Regularidad: más barra, menos variación entre vueltas (se excluye la vuelta de salida).</p></div>`}
 /* Sesiones */
-const TIPOS=['Shifter','L206','Rotax Sr','Rotax Jr','K100 Sr','K100 Jr','DD2','Micro','Mini','Bambino'];
+const TIPOS=['Shifter','L206','Rotax Sr','Rotax Jr','K100 Sr','K100 Jr','DD2','Micro Mini','Bambino'];
 const MOTORES=['60cc 2T','IAME X30 125cc','Rotax Max 125cc','Vortex 125cc','KZ 125cc (con cambios)','Honda GX 4T','Briggs & Stratton 4T','Eléctrico'];
 const SK='psdata-sesiones',CFG=window.PSDATA_DB||{},CLOUD=!!(CFG.url&&CFG.key);
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
