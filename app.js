@@ -438,7 +438,8 @@ const otros=val.filter(x=>x.lap!==best).map(x=>{const m=cornerM(x.tr,ia);return{
 let vsRef=null;if(ref){const m=cornerM(ref.tr,Math.round(ia/N*(ref.tr.v.length-1))),Nr=ref.tr.v.length-1,j1=Math.round(i1/N*Nr),j2=Math.round(i2/N*Nr);vsRef={...m,loss:tB-(ref.tr.t[j2]-ref.tr.t[j1])}}
 const avg=k=>otros.length?otros.reduce((s,o)=>s+o[k],0)/otros.length:null;
 return{n:ci+1,ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});
-return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref}}
+const O=telOrigin(TD),Pp=B.la.map((la,i)=>telXY(la,B.lo[i],O)),lossC=c=>Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),mxL=Math.max(.1,...C.map(lossC)),cc=c=>{const l=lossC(c);return l<.04?'#2DD4BF':l<mxL*.5?'#F2C14E':'#E4384A'};
+return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref,P:Pp,ds,cc}}
 /* Dibujitos para los consejos del Coach */
 const PICS={
 linea:`<svg viewBox="0 0 140 128" role="img" aria-label="Camino por la curva: de afuera hacia adentro y otra vez afuera"><path d="M40 112 V62 Q40 36 66 36 H140" fill="none" stroke="#2a3534" stroke-width="42"/><path d="M58 64 l3 -4" stroke="#E4384A" stroke-width="5"/><path d="M61 60 l4 -3" stroke="#fff" stroke-width="5"/><path d="M65 57 l4 -2" stroke="#E4384A" stroke-width="5"/><path d="M25 112 C25 84 34 66 58 58 C80 50 104 22 136 19" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"/><path d="M128 13 l9 6 -9 7" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"/><circle cx="25" cy="98" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="25" y="101.8" class="pl c">1</text><circle cx="56" cy="59" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="56" y="62.8" class="pl c">2</text><circle cx="112" cy="25" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="112" y="28.8" class="pl c">3</text><text x="70" y="125" class="pl c" style="font-size:9.5px">1 afuera → 2 adentro → 3 afuera</text></svg>`,
@@ -465,8 +466,8 @@ const buenas=R.C.filter(c=>c.otros.length&&c.avgLoss<0.04).map(c=>c.n);
 if(buenas.length)bien.push(`${buenas.length===1?'La curva':'Las curvas'} ${buenas.join(', ')} ${buenas.length===1?'te sale':'te salen'} siempre bien. ¡Genial! ✅`);
 if(gIdeal>0.05)bien.push(`Si juntás las mejores partes de tus vueltas, harías ${fmtLap(R.ideal)}. ¡Ya lo hiciste por partes, así que podés! ⭐`);
 o.push({h:'⭐ Lo que hiciste bien',t:bien});
-R.C.filter(c=>c.otros.length&&c.avgLoss>0.04).forEach(c=>{const k=consejo(c.dFreno,c.dMin,c.dEx,c.n);rec.push({g:c.avgLoss,pic:k.pic,t:`${k.t} Si lo hacés, ganás ${segs(c.avgLoss)}. 🏁`})});
-if(R.ref)R.C.forEach(c=>{const v=c.vsRef;if(v&&v.loss>0.04){const k=consejo(c.mb.freno-v.freno,c.mb.vmin-v.vmin,c.mb.vex-v.vex,c.n);rec.push({g:v.loss,pic:k.pic,t:`${k.t} (Así lo hace ${refx.piloto}, que ahí es ${segs(v.loss)} más rápido.)`})}});
+R.C.filter(c=>c.otros.length&&c.avgLoss>0.04).forEach(c=>{const k=consejo(c.dFreno,c.dMin,c.dEx,c.n);rec.push({g:c.avgLoss,pic:k.pic,c,frenoMal:c.mb.freno+c.dFreno,frenoBien:c.mb.freno,t:`${k.t} Si lo hacés, ganás ${segs(c.avgLoss)}. 🏁`})});
+if(R.ref)R.C.forEach(c=>{const v=c.vsRef;if(v&&v.loss>0.04){const k=consejo(c.mb.freno-v.freno,c.mb.vmin-v.vmin,c.mb.vex-v.vex,c.n);rec.push({g:v.loss,pic:k.pic,c,frenoMal:c.mb.freno,frenoBien:v.freno,t:`${k.t} (Así lo hace ${refx.piloto}, que ahí es ${segs(v.loss)} más rápido.)`})}});
 if(R.val>1&&R.sd>0.3)rec.push({g:R.mean-R.best.t,pic:'cono',t:`Tus vueltas cambian mucho entre una y otra. 👉 Buscá una marca para frenar en cada curva (un cono, una mancha, el cordón) y frená siempre ahí. ¡Así todas tus vueltas salen como la mejor!`});
 rec.sort((a,b)=>b.g-a.g);
 o.push({h:'🎯 Para mejorar',ol:rec.slice(0,3),vacio:'¡Excelente! No hay errores grandes: tus vueltas son muy parecidas. Para ir todavía más rápido, mirá cómo lo hace un piloto más rápido. 🚀'});
@@ -480,7 +481,30 @@ o.push({h:'🛠️ Para el entrenador (datos técnicos)',ul:[`Mejor vuelta ${fmt
 return o}
 const itT=i=>typeof i==='string'?i:i.t;
 const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${itT(t)}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+itT(t)):[s.vacio]):[]),''])].join('\r\n');
-const itH=i=>typeof i==='string'?esc(i):`<div class="tipc">${i.pic&&PICS[i.pic]?`<div class="pic">${PICS[i.pic]}</div>`:''}<div class="tipt">${esc(i.t)}</div></div>`;
+/* Dibujo de una curva real (GPS) con lo que hay que corregir */
+function cornerSVG(R,it){const c=it.c,P=R.P,N=P.length-1,ds=R.ds,im=c.mb.im,cl=i=>Math.max(0,Math.min(N,i)),at=i=>P[cl(i)];
+const k=it.pic,brk=k==='frenarTarde'||k==='frenarAntes',antes=brk?Math.max(50,(it.frenoMal||0)+14,(it.frenoBien||0)+14):55,despues=k==='acelerar'?Math.max(50,(c.mb.ie-im)*ds+45):45;
+const s0=cl(im-Math.round(antes/ds)),s1=cl(im+Math.round(despues/ds)),pts=P.slice(s0,s1+1);
+const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+const span=Math.max(x1-x0,y1-y0,30),W=span/6,pad=W*1.5,cx=(x0+x1)/2,cy=(y0+y1)/2;let w=x1-x0+2*pad,h=y1-y0+2*pad;if(w<h*1.25)w=h*1.25;else if(h<w/1.6)h=w/1.6;
+const f=n=>n.toFixed(1),fs=W*0.62;
+const tan=i=>{const a=at(i-2),b=at(i+2),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1;return[dx/L,dy/L]};
+const tb=tan(im-Math.round(25/ds)),ta=tan(im+Math.round(25/ds)),turn=(tb[0]*ta[1]-tb[1]*ta[0])>=0?1:-1;
+const nin=i=>{const t=tan(i);return turn>0?[-t[1],t[0]]:[t[1],-t[0]]};
+const off=(i,k)=>{const p=at(i),n=nin(i);return[p[0]+n[0]*W*k,p[1]+n[1]*W*k]};
+const txt=(p,s,col='var(--ink)',anchor='middle')=>`<text x="${f(p[0])}" y="${f(p[1])}" text-anchor="${anchor}" dominant-baseline="middle" style="font:700 ${f(fs)}px Barlow,sans-serif" fill="${col}">${s}</text>`;
+const bar=(i,col,label)=>{const p=at(i),t=tan(i),n=[-t[1],t[0]],hh=W*0.75,l=off(i,-1.35);return`<line x1="${f(p[0]-n[0]*hh)}" y1="${f(p[1]-n[1]*hh)}" x2="${f(p[0]+n[0]*hh)}" y2="${f(p[1]+n[1]*hh)}" stroke="${col}" stroke-width="${f(W*0.2)}" stroke-linecap="round"/>${txt(l,label,col)}`};
+let ov='';
+if(k==='frenarTarde'||k==='frenarAntes'){const mal=cl(im-Math.round((it.frenoMal||0)/ds)),bien=cl(im-Math.round((it.frenoBien||0)/ds));ov+=bar(mal,'#E4384A','✗')+bar(bien,'var(--acc)','✓')}
+else if(k==='acelerar'){const a=cl(c.mb.ie),b=cl(c.mb.ie+Math.round(35/ds)),seg=P.slice(a,b+1);ov+=`<polyline points="${seg.map(p=>f(p[0])+','+f(p[1])).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="${f(W*0.22)}" stroke-linecap="round"/>`;const e=at(b),t=tan(b),n=[-t[1],t[0]],hd=W*0.45;ov+=`<path d="M${f(e[0]-t[0]*hd+n[0]*hd)} ${f(e[1]-t[1]*hd+n[1]*hd)} L${f(e[0]+t[0]*hd*0.6)} ${f(e[1]+t[1]*hd*0.6)} L${f(e[0]-t[0]*hd-n[0]*hd)} ${f(e[1]-t[1]*hd-n[1]*hd)}" fill="none" stroke="var(--acc)" stroke-width="${f(W*0.2)}" stroke-linecap="round" stroke-linejoin="round"/>`+txt(off(cl(c.mb.ie+Math.round(18/ds)),-1.5),'¡a fondo!','var(--acc)')}
+else{const e=cl(im-Math.round(55/ds)),x=cl(im+Math.round(50/ds)),line=[];for(let i=e;i<=x;i++){const u=i<=im?(i-e)/((im-e)||1):(x-i)/((x-im)||1),kk=-0.36+0.72*(0.5-0.5*Math.cos(Math.PI*u));line.push(off(i,kk))}
+ov+=`<polyline points="${line.map(p=>f(p[0])+','+f(p[1])).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="${f(W*0.14)}" stroke-linecap="round" stroke-dasharray="${f(W*0.35)} ${f(W*0.25)}"/>`;
+[[e,-0.36,'1'],[im,0.36,'2'],[x,-0.36,'3']].forEach(([i,kk,n])=>{const p=off(i,kk);ov+=`<circle cx="${f(p[0])}" cy="${f(p[1])}" r="${f(W*0.44)}" fill="var(--bg)" stroke="var(--acc)" stroke-width="${f(W*0.09)}"/>`+txt(p,n)})}
+const end=at(s1),te=tan(s1),ne=[-te[1],te[0]],ah=W*0.5,col=R.cc(c),ap=[cx-w/2+W*0.75,cy-h/2+W*0.75];
+return`<svg viewBox="${f(cx-w/2)} ${f(cy-h/2)} ${f(w)} ${f(h)}" role="img" aria-label="Curva ${c.n}"><path d="M${pts.map(p=>f(p[0])+' '+f(p[1])).join(' L')}" fill="none" stroke="#2a3534" stroke-width="${f(W)}" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M${f(end[0]-te[0]*ah+ne[0]*ah)} ${f(end[1]-te[1]*ah+ne[1]*ah)} L${f(end[0]+te[0]*ah*0.5)} ${f(end[1]+te[1]*ah*0.5)} L${f(end[0]-te[0]*ah-ne[0]*ah)} ${f(end[1]-te[1]*ah-ne[1]*ah)}" fill="none" stroke="var(--mut)" stroke-width="${f(W*0.12)}"/>${ov}
+<circle cx="${f(ap[0])}" cy="${f(ap[1])}" r="${f(W*0.6)}" fill="${col}"/>${txt(ap,c.n,'var(--bg)')}</svg>`}
+const itH=(i,R)=>{if(typeof i==='string')return esc(i);let pic='';try{pic=i.c&&R&&R.P?cornerSVG(R,i):(i.pic&&PICS[i.pic]||'')}catch(e){pic=i.pic&&PICS[i.pic]||''}return`<div class="tipc">${pic?`<div class="pic">${pic}</div>`:''}<div class="tipt">${esc(i.t)}</div></div>`};
 async function vCoach(v){
 if(!CLOUD){v.innerHTML='<div class="card"><p>Para el Coach hace falta conectar la base de datos.</p></div>';return}
 if(!AUTH)return gate(v,'Ingresá para ver el Coach','Usá tu usuario y contraseña de psData.',()=>vCoach(v));
@@ -512,11 +536,11 @@ $('#co-sum').innerHTML=`<div class="stats">${st('mejor vuelta',fmtLap(R.best.t),
 $('#co-laps').innerHTML=`<table class="db sect"><thead><tr><th>Vuelta</th><th>Tiempo</th><th>Dif.</th><th></th></tr></thead><tbody>${R.laps.map(l=>`<tr><td>${l.n}</td><td class="${l===R.best?'t':''}">${fmtLap(l.t)}</td><td class="mut">${l===R.best?'—':'+'+(l.t-R.best.t).toFixed(3)}</td><td class="mut">${l===R.best?'mejor':R.fuera.includes(l)?'fuera de ritmo':''}</td></tr>`).join('')}</tbody></table>`;
 // mapa
 const O=telOrigin(td),P=R.B.la.map((la,i)=>telXY(la,R.B.lo[i],O)),xs=P.map(p=>p[0]),ys=P.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.1,s=Math.max(x1-x0,y1-y0)/100;
-const loss=c=>Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),mx=Math.max(.1,...R.C.map(loss)),cc=l=>l<.04?'#2DD4BF':l<mx*.5?'#F2C14E':'#E4384A';
-const marks=R.C.map(c=>{const p=P[c.ia],seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${cc(loss(c))}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${cc(loss(c))}"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
+const cc=x=>x;
+const marks=R.C.map(c=>{const p=P[c.ia],seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${R.cc(c)}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${R.cc(c)}"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
 $('#co-map').innerHTML=`<svg class="gsvg cmmap" viewBox="${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}" role="img" aria-label="Mapa de curvas"><path d="M${P.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round"/>${marks}</svg><div class="gleg mut"><span class="lg" style="background:#2DD4BF"></span>sin pérdida<span class="lg" style="background:#F2C14E"></span>pierde algo<span class="lg" style="background:#E4384A"></span>pierde más</div>`;
 const o=observaciones(R,x,refx);obsCache=obsTxt(o,x);
-$('#co-obs').innerHTML=o.map(sct=>`<h3>${esc(sct.h)}</h3>${(sct.t||[]).map(t=>`<p>${esc(t)}</p>`).join('')}${sct.ol?(sct.ol.length?`<ol class="tips">${sct.ol.map(t=>`<li>${itH(t)}</li>`).join('')}</ol>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}${sct.ul?(sct.ul.length?`<ul${sct.ul.some(t=>typeof t!=='string')?' class="tips"':''}>${sct.ul.map(t=>`<li>${itH(t)}</li>`).join('')}</ul>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}`).join('')}
+$('#co-obs').innerHTML=o.map(sct=>`<h3>${esc(sct.h)}</h3>${(sct.t||[]).map(t=>`<p>${esc(t)}</p>`).join('')}${sct.ol?(sct.ol.length?`<ol class="tips">${sct.ol.map(t=>`<li>${itH(t,R)}</li>`).join('')}</ol>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}${sct.ul?(sct.ul.length?`<ul${sct.ul.some(t=>typeof t!=='string')?' class="tips"':''}>${sct.ul.map(t=>`<li>${itH(t,R)}</li>`).join('')}</ul>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}`).join('')}
 catch(e){if(my===rid)$('#co-obs').innerHTML=`<p class="mut">No se pudo analizar: ${esc(e.message)}</p>`}}
 const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?'Tanda '+x.tanda:'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
 tree();run();
