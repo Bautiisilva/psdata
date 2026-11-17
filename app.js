@@ -103,22 +103,23 @@ if(!(y>2000&&mo>=1&&mo<=12&&d>=1&&d<=31))return null;return`${y}-${p2(mo)}-${p2(
 function csvHora(t){const m=String(t||'').trim().toLowerCase().match(/^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?$/);if(!m)return null;let h=+m[1];const pm=m[3]&&m[3][0]==='p',am=m[3]&&m[3][0]==='a';if(pm&&h<12)h+=12;if(am&&h===12)h=0;return h<24&&+m[2]<60?`${p2(h)}:${m[2]}`:null}
 function csvCells(l,d){const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}else if(ch==='"')q=true;else if(ch===d){out.push(cur.trim());cur=''}else cur+=ch}out.push(cur.trim());return out}
 const csvDelim=t=>{const h=String(t).split(/\r?\n/).find(l=>l.trim())||'';return h.split(';').length>h.split(',').length?';':','};
+const hBase=x=>String(x||'').toLowerCase().replace(/\s*\([^)]*\)\s*$/,'').trim(),hUnit=x=>{const m=String(x||'').match(/\(([^)]*)\)\s*$/);return m?m[1].trim().toLowerCase():''};
 /* Vueltas desde una columna "lap" (CSV convertidos desde .xrk/.xrz): cruces de línea y vueltas completas */
 function lapCol(txt){const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/),d=csvDelim(txt),num=t=>{t=String(t==null?'':t).trim();if(d===';')t=t.replace(',','.');return t===''?NaN:+t};
-let hi=-1,H=null;for(let i=0;i<Math.min(lines.length,60);i++){const c=csvCells(lines[i],d).map(x=>x.toLowerCase().trim());if(c.some(x=>/^(lap|vuelta)$/.test(x))&&c.some(x=>/^(time|tiempo)(_s|_ms)?$/.test(x))){hi=i;H=c;break}}
+let hi=-1,H=null,HR=null;for(let i=0;i<Math.min(lines.length,60);i++){const raw=csvCells(lines[i],d),c=raw.map(hBase);if(c.some(x=>/^(lap|vuelta)$/.test(x))&&c.some(x=>/^(time|tiempo)(_s|_ms)?$/.test(x))){hi=i;H=c;HR=raw;break}}
 if(hi<0)return null;
-const f=re=>H.findIndex(x=>re.test(x)),iL=f(/^(lap|vuelta)$/),iLT=f(/^(lap[_ ]?time|tiempo[_ ]?vuelta)(_s)?$/),iTs=f(/^(time|tiempo)(_s)?$/),iTms=f(/^(time|tiempo)_ms$/),iD=f(/^(distance|distancia)(_m)?$/);
+const f=re=>H.findIndex(x=>re.test(x)),iL=f(/^(lap|vuelta)$/),iLT=f(/^(lap[_ ]?(time|elapsed)|tiempo[_ ]?vuelta)(_s)?$/),iTot=f(/^lap[_ ]?total[_ ]?time(_s)?$/);let iTs=f(/^(time|tiempo)(_s)?$/),iTms=f(/^(time|tiempo)_ms$/);if(iTs>=0&&hUnit(HR[iTs])==='ms'){iTms=iTs;iTs=-1}const iD=f(/^(distance|distancia)(_m)?$/);
 const laps=new Map();
 for(let i=hi+1;i<lines.length;i++){if(!lines[i])continue;const c=csvCells(lines[i],d),t=iTs>=0?num(c[iTs]):num(c[iTms])/1000,l=num(c[iL]);if(isNaN(t)||isNaN(l))continue;
-const lt=iLT>=0?num(c[iLT]):NaN,dd=iD>=0?num(c[iD]):NaN;let L=laps.get(l);if(!L){L={n:l,start:isNaN(lt)?t:t-lt,d0:dd,d1:dd,tEnd:t};laps.set(l,L)}L.tEnd=t;if(!isNaN(dd))L.d1=dd}
+const lt=iLT>=0?num(c[iLT]):NaN,dd=iD>=0?num(c[iD]):NaN,tot=iTot>=0?num(c[iTot]):NaN;let L=laps.get(l);if(!L){L={n:l,start:isNaN(lt)?t:t-lt,d0:dd,d1:dd,tEnd:t,tot:NaN};laps.set(l,L)}L.tEnd=t;if(!isNaN(dd))L.d1=dd;if(!isNaN(tot)&&tot>0)L.tot=tot}
 const arr=[...laps.values()].sort((a,b)=>a.n-b.n);if(arr.length<2)return{markers:[],nums:[]};
-const iv=arr.map((L,k)=>({n:L.n,a:L.start,b:k+1<arr.length?arr[k+1].start:L.tEnd,dist:L.d1-L.d0,open:k+1===arr.length}));
+const iv=arr.map((L,k)=>({n:L.n,a:L.start,b:k+1<arr.length?arr[k+1].start:L.tEnd,dist:L.d1-L.d0,tot:L.tot,open:k+1===arr.length}));
 const med=a=>{const s=a.filter(x=>!isNaN(x)).sort((p,q)=>p-q);return s.length?s[Math.floor(s.length/2)]:NaN};
 const mid=iv.slice(1,-1),mD=med(mid.map(x=>x.dist)),mT=med(mid.map(x=>x.b-x.a));
-const ok=x=>!isNaN(mD)&&!isNaN(x.dist)&&Math.abs(x.dist-mD)/mD<0.03&&(isNaN(mT)||Math.abs((x.b-x.a)-mT)/mT<0.3);
+const ok=x=>!isNaN(mD)&&!isNaN(x.dist)?Math.abs(x.dist-mD)/mD<0.03&&(isNaN(mT)||Math.abs((x.b-x.a)-mT)/mT<0.3):!isNaN(mT)&&!x.open&&Math.abs((x.b-x.a)-mT)/mT<0.05;
 const keep=iv.filter((x,k)=>k>0&&k<iv.length-1||ok(x));if(!keep.length)return{markers:[],nums:[]};
 // marcas = inicio de cada vuelta completa + fin de la última (las vueltas completas son consecutivas)
-return{markers:[...keep.map(x=>x.a),keep[keep.length-1].b],nums:keep.map(x=>x.n)}}
+return{markers:[...keep.map(x=>x.a),keep[keep.length-1].b],nums:keep.map(x=>x.n),times:keep.map(x=>!isNaN(x.tot)?x.tot:x.b-x.a)}}
 function lapsFromCSV(txt){const lines=String(txt).replace(/^﻿/,'').split(/\r?\n/).slice(0,400);if(!lines.length)return null;
 const h=lines.find(l=>l.trim())||'',d=(h.split(';').length>h.split(',').length)?';':',';
 const cells=l=>csvCells(l,d);
@@ -128,7 +129,7 @@ const tsec=t=>{const m=t.match(/^(\d+):(\d{1,2}(?:\.\d+)?)$/);return m?(+m[1])*6
 let laps=[];const bm=row(['beacon markers']);
 if(bm){const m=toks(bm).map(tsec).filter(x=>!isNaN(x));for(let i=1;i<m.length;i++)laps.push(m[i]-m[i-1])}
 if(!laps.length){const st=row(['segment times','lap times']);if(st){const t=toks(st).map(tsec).filter(x=>!isNaN(x));laps=t.length>=3?t.slice(1,-1):t}}
-let nums=null;if(!laps.length){const lc=lapCol(txt);if(lc&&lc.markers.length>1){laps=lc.markers.slice(1).map((x,i)=>x-lc.markers[i]);nums=lc.nums}}
+let nums=null;if(!laps.length){const lc=lapCol(txt);if(lc&&lc.markers.length>1){laps=lc.times||lc.markers.slice(1).map((x,i)=>x-lc.markers[i]);nums=lc.nums}}
 const keepI=laps.map((x,i)=>i).filter(i=>laps[i]>5&&laps[i]<600);laps=keepI.map(i=>Math.round(laps[i]*1000)/1000);if(nums)nums=keepI.map(i=>nums[i]);
 const fr=row(['date','fecha']),hr=row(['time','hora']),fecha=fr?csvFecha(fr.join(d===','?', ':' ')):null,hora=hr?csvHora(hr[0]):null;
 if(!laps.length&&!fecha&&!hora)return null;
@@ -349,7 +350,7 @@ catch(e){if(!AUTH){location.reload();return}stamp='Sin conexión: mostrando lo �
 $('#rp').onchange=e=>{fP=e.target.value;lsSet('psdata-rank-pista',fP);fD='';draw()};$('#rt').onchange=e=>{fT=e.target.value;lsSet('psdata-rank-tipo',fT);fD='';draw()};$('#rd').onchange=e=>{fD=e.target.value;draw()};
 draw();load();document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});setInterval(()=>{if(!document.hidden)load()},60000);addEventListener('online',load)}
 /* Herramientas de telemetría compartidas */
-function telLaps(TD){const T=TD.T,m=TD.markers,out=[];if(m.length>=2){for(let k=0;k+1<m.length;k++){const a=T.findIndex(t=>t>=m[k]);let b=T.findIndex(t=>t>=m[k+1]);if(b<0)b=T.length;if(a>=0&&b-a>5)out.push({n:TD.lapNums&&TD.lapNums[k]!=null?TD.lapNums[k]:k+1,a,b,t:m[k+1]-m[k]})}}
+function telLaps(TD){const T=TD.T,m=TD.markers,out=[];if(m.length>=2){for(let k=0;k+1<m.length;k++){const a=T.findIndex(t=>t>=m[k]);let b=T.findIndex(t=>t>=m[k+1]);if(b<0)b=T.length;if(a>=0&&b-a>5)out.push({n:TD.lapNums&&TD.lapNums[k]!=null?TD.lapNums[k]:k+1,a,b,t:TD.lapTimes&&TD.lapTimes[k]?TD.lapTimes[k]:m[k+1]-m[k]})}}
 if(!out.length)out.push({n:0,a:0,b:T.length,t:T[T.length-1]-T[0]});return out}
 const telBest=L=>L.reduce((p,q)=>q.n&&(!p.n||q.t<p.t)?q:p,L[0]);
 function telOrigin(TD){const ii=TD.LA.map((_,i)=>i).filter(i=>TD.ok[i]);return[ii.reduce((s,i)=>s+TD.LA[i],0)/ii.length,ii.reduce((s,i)=>s+TD.LO[i],0)/ii.length]}
@@ -551,10 +552,10 @@ function csvMarkers(txt){const lines=String(txt).replace(/^﻿/,'').split(/\r?\n
 for(const l of lines){const c=csvCells(l,d),k=(c[0]||'').toLowerCase();const k2=/^beacon markers$/.test(k)?'beacon':/^(split|sector) markers$/.test(k)?'split':null;if(!k2)continue;
 c.slice(1).join(' ').split(d===';'?/[\s;]+/:/[\s,]+/).forEach(t=>{const x=num(t);if(!isNaN(x))out[k2].push(x)})}
 out.beacon.sort((a,b)=>a-b);out.split.sort((a,b)=>a-b);return out}
-function teorica(txt){const mk=csvMarkers(txt);let B=mk.beacon,BN=null;if(!B.length){const lc=lapCol(txt);if(lc&&lc.markers.length>1){B=lc.markers;BN=lc.nums}}
+function teorica(txt){const mk=csvMarkers(txt);let B=mk.beacon,BN=null;let BT=null;if(!B.length){const lc=lapCol(txt);if(lc&&lc.markers.length>1){B=lc.markers;BN=lc.nums;BT=lc.times}}
 const fin=(f,laps,secs)=>{const best=laps.reduce((p,q)=>q.t<p.t?q:p,laps[0]);const s=secs[0].map((_,k)=>{let bt=Infinity,bl=0;secs.forEach((row,i)=>{if(row[k]<bt){bt=row[k];bl=laps[i].n}});return[Math.round(bt*1000)/1000,bl,Math.round(secs[laps.indexOf(best)][k]*1000)/1000]});
 return{f,s,teorica:laps.length<2?Math.round(best.t*1000)/1000:Math.min(Math.round(best.t*1000)/1000,Math.round(s.reduce((a,x)=>a+x[0],0)*1000)/1000),mejor:Math.round(best.t*1000)/1000,mejorN:best.n,vueltas:laps.length}};
-const lapsB=[];for(let k=0;k+1<B.length;k++){const t=B[k+1]-B[k];if(t>5&&t<600)lapsB.push({n:BN?BN[k]:k+1,a:B[k],b:B[k+1],t})}
+const lapsB=[];for(let k=0;k+1<B.length;k++){const t=BT&&BT[k]?BT[k]:B[k+1]-B[k];if(t>5&&t<600)lapsB.push({n:BN?BN[k]:k+1,a:B[k],b:B[k+1],t})}
 // 1) splits configurados en la MyChron
 if(mk.split.length&&lapsB.length){const rows=lapsB.map(l=>{const sp=mk.split.filter(x=>x>l.a+0.05&&x<l.b-0.05),pts=[l.a,...sp,l.b];return pts.slice(1).map((x,i)=>x-pts[i])});
 const cnt={};rows.forEach(r=>cnt[r.length]=(cnt[r.length]||0)+1);const nS=+Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0];
@@ -599,20 +600,20 @@ let hi=-1;for(let i=0;i<Math.min(lines.length,500);i++){const c=csvCells(lines[i
 if(hi<0)return{error:'Este CSV no trae datos de GPS (latitud y longitud). En Race Studio 3, exportá el CSV incluyendo los canales GPS.'};
 const H=csvCells(lines[hi],d),find=re=>H.findIndex(x=>re.test(x));
 let unidades=[],start=hi+1;const u=csvCells(lines[hi+1]||'',d);if(u.length&&isNaN(num(u[0]))){unidades=u;start=hi+2}
-let iT=find(/^(time|tiempo)(_s)?$/i);const iTms=iT<0?find(/^(time|tiempo)_ms$/i):-1;if(iT<0)iT=iTms;const tK=iTms>=0&&iT===iTms?0.001:1,iLa=find(/latitud/i),iLo=find(/longitud/i);let iS=find(/^gps[ _]speed/i);if(iS<0)iS=find(/speed|velocidad/i);
-const iD=find(/^(distance|distancia)(_m)?$/i);
+const fB=re=>H.findIndex(x=>re.test(hBase(x)));let iT=fB(/^(time|tiempo)(_s)?$/);let iTms=iT<0?fB(/^(time|tiempo)_ms$/):(hUnit(H[iT])==='ms'?iT:-1);if(iT<0)iT=iTms;const tK=iTms>=0&&iT===iTms?0.001:1,iLa=find(/latitud/i),iLo=find(/longitud/i);let iS=find(/^gps[ _]speed/i);if(iS<0)iS=find(/speed|velocidad/i);
+const iD=fB(/^(distance|distancia)(_m)?$/);
 if(iT<0)return{error:'No encontré la columna de tiempo (Time) en el CSV.'};
-const R=[];for(let i=start;i<lines.length;i++){if(!lines[i].trim())continue;const c=csvCells(lines[i],d);const t=num(c[iT]);if(isNaN(t))continue;R.push(c)}const lapJ=find(/^(lap|vuelta)$/i);
+const R=[];for(let i=start;i<lines.length;i++){if(!lines[i].trim())continue;const c=csvCells(lines[i],d);const t=num(c[iT]);if(isNaN(t))continue;R.push(c)}const lapJ=fB(/^(lap|vuelta)$/);
 if(R.length<10)return{error:'El CSV casi no tiene datos.'};
-const chans=[];H.forEach((n,j)=>{if(j===iT||j===iLa||j===iLo||!n||/^(time|tiempo)(_s|_ms)?$|^(lap|vuelta)$|^lap[_ ]?time/i.test(n))return;let ok=0;for(let k=0;k<R.length;k+=Math.max(1,Math.floor(R.length/50)))if(!isNaN(num(R[k][j])))ok++;if(ok>5)chans.push({j,name:n,unit:unidades[j]||''})});
+const chans=[];H.forEach((n,j)=>{if(j===iT||j===iLa||j===iLo||!n||/^(time|tiempo)(_s|_ms)?$|^(lap|vuelta)$|^lap[_ ]?(time|elapsed|total)/i.test(hBase(n)))return;let ok=0;for(let k=0;k<R.length;k+=Math.max(1,Math.floor(R.length/50)))if(!isNaN(num(R[k][j])))ok++;if(ok>5)chans.push({j,name:n,unit:unidades[j]||''})});
 const T=[],LA=[],LO=[],V=[],DI=[],CH={};chans.forEach(c=>CH[c.j]=[]);
 R.forEach(c=>{T.push(num(c[iT])*tK);LA.push(num(c[iLa]));LO.push(num(c[iLo]));V.push(iS>=0?num(c[iS]):NaN);DI.push(iD>=0?num(c[iD]):NaN);chans.forEach(ch=>CH[ch.j].push(num(c[ch.j])))});
 const ok=LA.map((a,i)=>Math.abs(a)>0.0001&&Math.abs(LO[i])>0.0001&&!isNaN(a)&&!isNaN(LO[i]));
 if(ok.filter(Boolean).length<10)return{error:'El GPS del CSV no tiene posiciones válidas (¿la MyChron tenía señal de GPS?).'};
 // velocidad desde GPS si no hay canal
 const m=[];const head=lines.slice(0,hi);for(const l of head){const c=csvCells(l,d);if(/^beacon markers$/i.test(c[0]||'')){c.slice(1).join(' ').split(d===';'?/[\s;]+/:/[\s,]+/).forEach(t=>{const x=num(t);if(!isNaN(x))m.push(x)})}}
-let lapNums=null;if(!m.length&&lapJ>=0){const lc=lapCol(txt);if(lc){lc.markers.forEach(x=>m.push(x));lapNums=lc.nums}}
-return{T,LA,LO,V,DI,CH,chans,ok,lapNums,markers:m.sort((a,b)=>a-b),speedCol:iS>=0?H[iS]:null,speedUnit:iS>=0?(unidades[iS]||'km/h'):'km/h'}}
+let lapNums=null,lapTimes=null;if(!m.length&&lapJ>=0){const lc=lapCol(txt);if(lc){lc.markers.forEach(x=>m.push(x));lapNums=lc.nums;lapTimes=lc.times}}
+return{T,LA,LO,V,DI,CH,chans,ok,lapNums,lapTimes,markers:m.sort((a,b)=>a-b),speedCol:iS>=0?H[iS]:null,speedUnit:iS>=0?(unidades[iS]||'km/h'):'km/h'}}
 function vGPS(el){
 el.innerHTML=`<section class="card col gpsc"><div class="head"><h2>GPS de la tanda</h2><div class="tools gtools"><select id="gs-ses" aria-label="Sesión guardada" hidden></select><label class="ghost filebtn">Abrir CSV<input type="file" accept=".csv,text/csv" id="gs-file" hidden></label></div></div>
 <div class="gsel" hidden id="gs-sel"><label>Vuelta<select id="gs-lap"></select></label><label>Dato<select id="gs-ch"></select></label></div>
