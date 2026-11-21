@@ -81,6 +81,8 @@ const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'
 const flong=d=>{const[y,m,dd]=d.split('-').map(Number),w=new Date(y,m-1,dd).getDay();return`${DIAS[w][0].toUpperCase()+DIAS[w].slice(1)} ${dd} de ${MESES[m-1]} de ${y}`};
 const tC=x=>{const t=Date.parse(x.creado||'');return isNaN(t)?0:t};
 const porCarga=(a,b)=>(tC(b)-tC(a))||(b.fecha+b.hora).localeCompare(a.fecha+a.hora);
+const TESP={8:'FP1',9:'FP2',10:'Qualy',11:'Final 1',12:'Final 2'};
+const tLbl=t=>TESP[+t]||('Tanda '+t),tLow=t=>TESP[+t]||('tanda '+t),tShort=t=>TESP[+t]||String(t);
 const desc=(a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)||((+b.tanda||0)-(+a.tanda||0));
 const norm=x=>({id:x.id,piloto:x.piloto,fecha:String(x.fecha).slice(0,10),hora:String(x.hora).slice(0,5),kart:String(x.kart),tipo:x.tipo,motor:x.motor,pista:x.pista||null,archivo:x.archivo||null,archivo_nombre:x.archivo_nombre||null,mejor_vuelta:x.mejor_vuelta!=null?Number(x.mejor_vuelta):null,tanda:x.tanda!=null?Number(x.tanda):null,creado:x.creado||null,vuelta_teorica:x.vuelta_teorica!=null?Number(x.vuelta_teorica):null,microsectores:x.microsectores||null,vueltas:Array.isArray(x.vueltas)?x.vueltas.map(Number):null});
 const COLS='?select=id,piloto,fecha,hora,kart,tipo,motor,pista,archivo,archivo_nombre,mejor_vuelta,vueltas,tanda,creado,vuelta_teorica,microsectores';
@@ -189,7 +191,7 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <label>Piloto<span id="pwrap"></span></label>
 <div class="pair"><label>Fecha<input name="fecha" type="date" required value="${hoy}"></label><label>Hora de la sesión<input name="hora" type="time" required value="${hora}"></label></div>
 <label>Pista${sel('pista',PISTAS,'Elegí la pista')}</label>
-<div class="pair"><label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label><label>Número de tanda<select name="tanda" required><option value="" disabled selected>Elegí</option>${[1,2,3,4,5,6,7].map(n=>`<option value="${n}">Tanda ${n}</option>`).join('')}</select></label></div>
+<div class="pair"><label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label><label>Número de tanda<select name="tanda" required><option value="" disabled selected>Elegí</option>${[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${tLbl(n)}</option>`).join('')}</select></label></div>
 <label>Tipo de kart${sel('tipo',TIPOS,'Elegí el tipo de kart')}</label>
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
 <label>Mejor vuelta <span class="opt">(se completa sola con el CSV)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 1:05.300"></label><div class="mut csvi" id="csvi"></div>
@@ -220,13 +222,13 @@ const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(
 $('#dv').innerHTML=names.length?names.map(n=>{const a=g[n].sort(desc);
 return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary><i class="chip" style="background:var(--acc)"></i><span class="dn">${esc(n)}</span>${CLOUD&&!acc.has(n)?'<span class="nocc" title="Este nombre no tiene cuenta en Drivers">sin cuenta</span>':''}<span class="dc">${a.length} ${a.length===1?'tanda':'tandas'}</span></summary>
 <dl class="dinfo"><div><dt>Última</dt><dd>${fdate(a[0].fecha)}</dd></div><div><dt>Kart habitual</dt><dd>#${esc(topOf(a,'kart'))}</dd></div><div><dt>Tipo</dt><dd>${esc(topOf(a,'tipo'))}</dd></div><div><dt>Motor</dt><dd>${esc(topOf(a,'motor'))}</dd></div></dl>
-<ol class="tandas">${a.map((x,k)=>`<li><b>${x.tanda?'Tanda '+x.tanda:'Sesión'}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span>${x.pista?`<span>${esc(x.pista)}</span>`:''}<span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta <b class="tl">'+fmtLap(x.mejor_vuelta)+'</b>':''}${x.vueltas&&x.vueltas.length?' · '+x.vueltas.length+' vueltas':''}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
+<ol class="tandas">${a.map((x,k)=>`<li><b>${x.tanda?tLbl(x.tanda):'Sesión'}</b><span>${fdate(x.fecha)} · ${esc(x.hora)} · kart #${esc(x.kart)}</span>${x.pista?`<span>${esc(x.pista)}</span>`:''}<span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta <b class="tl">'+fmtLap(x.mejor_vuelta)+'</b>':''}${x.vueltas&&x.vueltas.length?' · '+x.vueltas.length+' vueltas':''}</span>${flink(x,'📎 '+esc(x.archivo_nombre||'Archivo'))}</li>`).join('')}</ol></details>`}).join('')
 :'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(porCarga);
 $('#cnt').textContent='· '+rows.length;
-$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?x.tanda:'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td class="teo">${x.vuelta_teorica!=null?fmtLap(x.vuelta_teorica):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="11" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
+$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?tShort(x.tanda):'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td class="teo">${x.vuelta_teorica!=null?fmtLap(x.vuelta_teorica):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="11" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
 $('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
@@ -242,7 +244,7 @@ addEventListener('online',sync);document.addEventListener('visibilitychange',()=
 $('#dv').addEventListener('toggle',e=>{const n=e.target.dataset.n;if(n!==undefined)e.target.open?open.add(n):open.delete(n)},true);
 const fin=$('#fa'),fnl=$('#fn'),fdef=fnl.textContent;
 let LAPS=null,tTouched=false;const fsF=$('#fs');
-const sugT=()=>{if(tTouched)return;const pi=fsF.piloto.value.trim(),fe=fsF.fecha.value;if(!pi||!fe)return;const used=S.filter(x=>x.piloto===pi&&x.fecha===fe).map(x=>+x.tanda||0);const n=Math.min(7,Math.max(used.length,...used,0)+1);fsF.tanda.value=String(n)};
+const sugT=()=>{if(tTouched)return;const pi=fsF.piloto.value.trim(),fe=fsF.fecha.value;if(!pi||!fe)return;const used=S.filter(x=>x.piloto===pi&&x.fecha===fe).map(x=>+x.tanda||0).filter(t=>t<=7);const n=Math.min(7,Math.max(used.length,...used,0)+1);fsF.tanda.value=String(n)};
 fsF.tanda.onchange=()=>{tTouched=true};fsF.fecha.addEventListener('change',sugT);fsF.piloto.addEventListener('change',sugT);fsF.piloto.addEventListener('blur',sugT);sugT();
 $('#fs').mv.onblur=e=>{const v=parseLap(e.target.value);if(v!=null&&!isNaN(v))e.target.value=fmtLap(v)};
 $('#fs').mv.oninput=()=>{LAPS=null;const ci=$('#csvi');if(ci.classList.contains('ok')){ci.textContent='';ci.className='mut csvi'}};
@@ -261,7 +263,7 @@ const path=`${slug(x.piloto)}/${x.fecha}_${x.hora.replace(':','')}_kart${slug(x.
 btn.disabled=true;btn.textContent='Subiendo archivo…';$('#msg').textContent='';
 try{await stor(path,{method:'POST',headers:{'Content-Type':fl.type||'application/octet-stream','x-upsert':'false'},body:fl})}
 catch(err){btn.disabled=false;btn.textContent='Guardar sesión';$('#msg').textContent='No se pudo subir el archivo. Revisá la conexión y probá de nuevo. ('+err.message+')';return}
-btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;try{if(/\.csv$/i.test(fl.name)){const th=teorica(await fl.text());if(th){x.vuelta_teorica=th.teorica;x.microsectores=th}}}catch(err){}x.archivo_nombre=`${x.piloto} - ${x.fecha} - tanda ${x.tanda} - kart ${x.kart}${ext}`}
+btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;try{if(/\.csv$/i.test(fl.name)){const th=teorica(await fl.text());if(th){x.vuelta_teorica=th.teorica;x.microsectores=th}}}catch(err){}x.archivo_nombre=`${x.piloto} - ${x.fecha} - ${tLow(x.tanda)} - kart ${x.kart}${ext}`}
 S.push(x);const ok=saveS(S);open.add(x.piloto);fin.value='';fin.onchange();e.target.mv.value='';tTouched=false;sugT();
 $('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':''}.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
@@ -280,7 +282,7 @@ const cb=a.filter(x=>x.mejor_vuelta!=null).sort((p,q)=>p.mejor_vuelta-q.mejor_vu
 return`<h2 class="pn">${esc(nombre)}</h2><div class="stats">${st('tandas',a.length)}${st(fechas.length===1?'día en pista':'días en pista',fechas.length)}${st(cb?'mejor vuelta · '+esc(cb.pista||''):'mejor vuelta',cb?fmtLap(cb.mejor_vuelta):'—','mv')}${st('kart habitual','#'+esc(topOf(a,'kart')))}</div>
 <div class="mut hab">Última sesión: <b>${fdate(a[0].fecha)}</b> · Pista habitual: <b>${esc(topOf(a,'pista'))}</b> · Tipo: <b>${esc(topOf(a,'tipo'))}</b> · Motor: <b>${esc(topOf(a,'motor'))}</b></div>
 ${fechas.map(f=>{const t=dias[f].slice().sort((p,q)=>((+p.tanda||99)-(+q.tanda||99))||p.hora.localeCompare(q.hora));return`<section class="dia"><h3>${flong(f)} <span class="mut">· ${t.length} ${t.length===1?'tanda':'tandas'}</span></h3>
-<ol class="tandas">${t.map((x,i)=>`<li><b>Tanda ${x.tanda||i+1} · ${esc(x.hora)}</b><span>${x.pista?esc(x.pista)+' · ':''}kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta <b class="tl">'+fmtLap(x.mejor_vuelta)+'</b>':''}${x.vueltas&&x.vueltas.length?' · '+x.vueltas.length+' vueltas':''}</span>${flink(x,'📎 Descargar archivo')}</li>`).join('')}</ol></section>`}).join('')}`}
+<ol class="tandas">${t.map((x,i)=>`<li><b>${tLbl(x.tanda||i+1)} · ${esc(x.hora)}</b><span>${x.pista?esc(x.pista)+' · ':''}kart #${esc(x.kart)}</span><span class="mut">${esc(x.tipo)} · ${esc(x.motor)}${x.mejor_vuelta!=null?' · mejor vuelta <b class="tl">'+fmtLap(x.mejor_vuelta)+'</b>':''}${x.vueltas&&x.vueltas.length?' · '+x.vueltas.length+' vueltas':''}</span>${flink(x,'📎 Descargar archivo')}</li>`).join('')}</ol></section>`}).join('')}`}
 async function vDr(v){
 if(!CLOUD){v.innerHTML='<div class="card"><p>Para usar cuentas de pilotos hace falta conectar la base de datos (pasos en LEEME.txt).</p></div>';return}
 if(!AUTH)return gate(v,'Ingresá a tu perfil','Usá el usuario y la contraseña que te dio tu entrenador.',()=>vDr(v));
@@ -370,7 +372,7 @@ const loadList=async()=>{S=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.c
 try{await loadList()}catch(e){v.innerHTML='<div class="card"><p class="mut">No se pudieron cargar las sesiones. Probá recargar la página.</p></div>';return}
 if(!S.length){v.innerHTML='<div class="card"><p>Cuando cargues sesiones con su CSV de la MyChron (en Sesiones), acá vas a poder comparar dos pilotos, o dos tandas del mismo piloto, sector por sector.</p></div>';return}
 sel.A=S[0].id;sel.B=(S.find(x=>x.piloto!==S[0].piloto&&x.pista===S[0].pista)||S.find(x=>x.piloto!==S[0].piloto)||S.find(x=>x.id!==S[0].id)||S[0]).id;
-const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?'Tanda '+x.tanda:'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
+const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?tLbl(x.tanda):'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
 v.innerHTML=`<div class="two cmpsel">${['A','B'].map(k=>`<div class="card side"><div class="sidet"><i class="chip" style="background:${k==='A'?AC:BC}"></i>Piloto ${k}</div><label>Piloto<select id="cp-${k}"></select></label><label>Sesión <span class="opt">(fecha · tanda · vuelta · pista)</span><select id="cs-${k}"></select></label></div>`).join('')}</div>
 <div class="card chartc"><div class="mut" id="cm-msg"></div><div id="cm-chart"></div><div class="read" id="cm-read"></div></div>
 <div class="card mapc"><div class="mut">Mapa por sectores: cada sector va del color del piloto que fue más rápido ahí</div><div id="cm-map"></div></div>
@@ -384,7 +386,7 @@ const tel=id=>telFetch(S.find(s=>s.id===id));
 let A,B,TA,TB,O,run_id=0;
 async function run(){const my=++run_id,xa=S.find(x=>x.id===sel.A),xb=S.find(x=>x.id===sel.B);$('#cm-msg').textContent='Bajando los CSV…';
 try{const[ta,tb]=await Promise.all([tel(sel.A),tel(sel.B)]);if(my!==run_id)return;const la=telBest(telLaps(ta)),lb=telBest(telLaps(tb));
-A=lapTrace(ta,la);B=lapTrace(tb,lb);O=telOrigin(ta);TA={x:xa,lap:la};TB={x:xb,lap:lb};const same=xa.piloto===xb.piloto,tag=x=>same?`${x.piloto} T${x.tanda||'?'}${xa.id===xb.id?(x===xa?' (A)':' (B)'):''}`:x.piloto;TA.x={...xa,piloto:tag(xa)};TB.x={...xb,piloto:tag(xb)};
+A=lapTrace(ta,la);B=lapTrace(tb,lb);O=telOrigin(ta);TA={x:xa,lap:la};TB={x:xb,lap:lb};const same=xa.piloto===xb.piloto,tag=x=>same?`${x.piloto} ${x.tanda?(TESP[+x.tanda]||'T'+x.tanda):'T?'}${xa.id===xb.id?(x===xa?' (A)':' (B)'):''}`:x.piloto;TA.x={...xa,piloto:tag(xa)};TB.x={...xb,piloto:tag(xb)};
 const nm=(t,k)=>`${esc(t.x.piloto)}${t.lap.n?` (vuelta ${t.lap.n}`:' ('}${t.lap.n?', ':''}${fmtLap(t.lap.t)})`;
 $('#cm-msg').innerHTML=`Mejor vuelta de cada sesión: <b style="color:${AC}">${nm(TA)}</b> contra <b style="color:${BC}">${nm(TB)}</b>.${xa.pista&&xb.pista&&xa.pista!==xb.pista?' <span class="warnt">Ojo: son pistas distintas.</span>':''}`;
 draw()}catch(e){if(my!==run_id)return;$('#cm-msg').textContent='No se pudo comparar: '+e.message;['#cm-chart','#cm-map','#cm-sec','#cm-read'].forEach(s=>$(s).innerHTML='')}}
@@ -481,7 +483,7 @@ o.push({h:'🛠️ Para el entrenador (datos técnicos)',ul:[`Mejor vuelta ${fmt
 'Curvas detectadas en la mejor vuelta (donde la velocidad baja y vuelve a subir). Vueltas más de 7% lentas no cuentan para los promedios.']});
 return o}
 const itT=i=>typeof i==='string'?i:i.t;
-const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${itT(t)}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+itT(t)):[s.vacio]):[]),''])].join('\r\n');
+const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · '+tLow(x.tanda):''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${itT(t)}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+itT(t)):[s.vacio]):[]),''])].join('\r\n');
 /* Dibujo de una curva real (GPS) con lo que hay que corregir */
 function cornerSVG(R,it){const c=it.c,P=R.P,N=P.length-1,ds=R.ds,im=c.mb.im,cl=i=>Math.max(0,Math.min(N,i)),at=i=>P[cl(i)];
 const k=it.pic,brk=k==='frenarTarde'||k==='frenarAntes',antes=brk?Math.max(50,(it.frenoMal||0)+14,(it.frenoBien||0)+14):55,despues=k==='acelerar'?Math.max(50,(c.mb.ie-im)*ds+45):45;
@@ -520,11 +522,11 @@ v.innerHTML=ubar()+`<div class="coach"><aside class="card col cdata"><h2>Datos</
 <div class="card col"><h2>Vueltas</h2><div id="co-laps"></div></div></section>
 <aside class="card col cobs"><div class="head"><h2>📄 Observaciones</h2><button type="button" class="ghost" id="co-dl">Descargar</button></div><div id="co-obs" class="obs"></div></aside></div>`;bindUbar();
 const tree=()=>{const g={};S.forEach(x=>((g[x.piloto]=g[x.piloto]||{})[x.fecha]=g[x.piloto][x.fecha]||[]).push(x));
-$('#co-tree').innerHTML=Object.keys(g).sort((a,b)=>a.localeCompare(b)).map(p=>`<details class="cpil" data-p="${esc(p)}"${open.has(p)?' open':''}><summary>${esc(p)} <span class="mut">· ${Object.values(g[p]).flat().length}</span></summary>${Object.keys(g[p]).sort().reverse().map(f=>`<div class="cdia">${fdate(f)}</div>${g[p][f].sort((a,b)=>(a.tanda||0)-(b.tanda||0)).map(x=>`<button type="button" class="ctan${x.id===cur?' on':''}" data-id="${esc(x.id)}"><span>${x.tanda?'Tanda '+x.tanda:x.hora}</span><span class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):''}</span><span class="mut">${esc(x.pista||'')}</span></button>`).join('')}`).join('')}</details>`).join('')};
+$('#co-tree').innerHTML=Object.keys(g).sort((a,b)=>a.localeCompare(b)).map(p=>`<details class="cpil" data-p="${esc(p)}"${open.has(p)?' open':''}><summary>${esc(p)} <span class="mut">· ${Object.values(g[p]).flat().length}</span></summary>${Object.keys(g[p]).sort().reverse().map(f=>`<div class="cdia">${fdate(f)}</div>${g[p][f].sort((a,b)=>(a.tanda||0)-(b.tanda||0)).map(x=>`<button type="button" class="ctan${x.id===cur?' on':''}" data-id="${esc(x.id)}"><span>${x.tanda?tLbl(x.tanda):x.hora}</span><span class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):''}</span><span class="mut">${esc(x.pista||'')}</span></button>`).join('')}`).join('')}</details>`).join('')};
 $('#co-tree').addEventListener('toggle',e=>{const p=e.target.dataset&&e.target.dataset.p;if(p!==undefined)e.target.open?open.add(p):open.delete(p)},true);
 $('#co-tree').onclick=e=>{const b=e.target.closest('.ctan');if(!b)return;cur=b.dataset.id;lsSet('psdata-coach',cur);refId='';tree();run();if(innerWidth<1100)$('#co-tit').scrollIntoView({behavior:'smooth'})};
 $('#co-ref').onchange=e=>{refId=e.target.value;run()};
-$('#co-dl').onclick=()=>{if(!obsCache)return;const x=S.find(s=>s.id===cur),a=document.createElement('a');const txt=window.LANG==='en'&&window.TR?obsCache.split('\r\n').map(l=>window.TR(l)).join('\r\n'):obsCache;a.href=URL.createObjectURL(new Blob(['\ufeff'+txt],{type:'text/plain'}));a.download=`${window.LANG==='en'?'Notes':'Observaciones'} - ${x.piloto} - ${x.fecha}${x.tanda?' - tanda '+x.tanda:''}.txt`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('#co-dl').onclick=()=>{if(!obsCache)return;const x=S.find(s=>s.id===cur),a=document.createElement('a');const txt=window.LANG==='en'&&window.TR?obsCache.split('\r\n').map(l=>window.TR(l)).join('\r\n'):obsCache;a.href=URL.createObjectURL(new Blob(['\ufeff'+txt],{type:'text/plain'}));a.download=`${window.LANG==='en'?'Notes':'Observaciones'} - ${x.piloto} - ${x.fecha}${x.tanda?' - '+tLow(x.tanda):''}.txt`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 let rid=0;
 async function run(){const my=++rid,x=S.find(s=>s.id===cur);$('#co-tit').textContent=x.piloto;$('#co-sub').textContent=lbl(x);
 const cands=S.filter(s=>s.id!==x.id&&(!x.pista||s.pista===x.pista));const sug=cands.filter(s=>s.piloto!==x.piloto&&s.tipo===x.tipo&&s.mejor_vuelta!=null&&(x.mejor_vuelta==null||s.mejor_vuelta<x.mejor_vuelta)).sort((a,b)=>a.mejor_vuelta-b.mejor_vuelta)[0];
@@ -543,7 +545,7 @@ $('#co-map').innerHTML=`<svg class="gsvg cmmap" viewBox="${(x0-pad).toFixed(1)} 
 const o=observaciones(R,x,refx);obsCache=obsTxt(o,x);
 $('#co-obs').innerHTML=o.map(sct=>`<h3>${esc(sct.h)}</h3>${(sct.t||[]).map(t=>`<p>${esc(t)}</p>`).join('')}${sct.ol?(sct.ol.length?`<ol class="tips">${sct.ol.map(t=>`<li>${itH(t,R)}</li>`).join('')}</ol>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}${sct.ul?(sct.ul.length?`<ul${sct.ul.some(t=>typeof t!=='string')?' class="tips"':''}>${sct.ul.map(t=>`<li>${itH(t,R)}</li>`).join('')}</ul>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}`).join('')}
 catch(e){if(my===rid)$('#co-obs').innerHTML=`<p class="mut">No se pudo analizar: ${esc(e.message)}</p>`}}
-const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?'Tanda '+x.tanda:'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
+const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?tLbl(x.tanda):'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
 tree();run();
 const refresh=async()=>{if(document.hidden)return;try{const n=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc);if(n.map(x=>x.id).join()!==S.map(x=>x.id).join()){S=n;tree()}}catch(e){}};
 setInterval(refresh,60000);document.addEventListener('visibilitychange',refresh)}
@@ -575,7 +577,7 @@ let S=[],teoId='',run=0;const admin=AUTH.perfil&&AUTH.perfil.rol==='admin';
 const load=async()=>{S=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(porCarga)};
 const fill=()=>{if(!S.length){sel.hidden=true;v.innerHTML='<p class="mut">Cuando guardes una sesión con el CSV de la MyChron, acá aparece su vuelta teórica.</p>';return false}
 sel.hidden=false;if(!S.some(x=>x.id===teoId))teoId=S[0].id;
-sel.innerHTML=S.map(x=>`<option value="${esc(x.id)}"${x.id===teoId?' selected':''}>${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · Tanda '+x.tanda:''}</option>`).join('');return true};
+sel.innerHTML=S.map(x=>`<option value="${esc(x.id)}"${x.id===teoId?' selected':''}>${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · '+tLbl(x.tanda):''}</option>`).join('');return true};
 async function show(){const my=++run,x=S.find(s=>s.id===teoId);if(!x)return;let th=x.microsectores&&x.microsectores.s?x.microsectores:null;
 if(!th){v.innerHTML='<p class="mut">Calculando con el CSV…</p>';try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);th=teorica(await r.text())}catch(e){if(my===run)v.innerHTML=`<p class="mut">No se pudo calcular: ${esc(e.message)}</p>`;return}
 if(my!==run)return;if(!th){v.innerHTML='<p class="mut">Este CSV no trae vueltas completas para calcular la vuelta teórica.</p>';return}
@@ -659,9 +661,9 @@ let bi=lap.a,bd=1e18;for(let i=lap.a;i<lap.b;i++){const p=P[i];if(!p)continue;co
 $('#gs-lap').onchange=e=>{lap=L[+e.target.value];draw()};$('#gs-ch').onchange=e=>{chJ=+e.target.value;drawChart();setCur(Math.max(lap.a,Math.min(cur,lap.b-1)))};
 $('#gs-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;msg('Leyendo '+f.name+'…');try{load(await f.text(),f.name)}catch(err){msg('No pude leer el archivo: '+err.message)}e.target.value=''};
 if(CLOUD&&AUTH){(async()=>{try{const rows=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc);if(!rows.length)return;const sel=$('#gs-ses');
-sel.innerHTML='<option value="">Elegí una sesión…</option>'+rows.map(x=>`<option value="${esc(x.id)}">${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}${x.pista?' · '+esc(x.pista):''}</option>`).join('');sel.hidden=false;
+sel.innerHTML='<option value="">Elegí una sesión…</option>'+rows.map(x=>`<option value="${esc(x.id)}">${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · '+tLow(x.tanda):''}${x.pista?' · '+esc(x.pista):''}</option>`).join('');sel.hidden=false;
 sel.onchange=async()=>{const x=rows.find(r=>r.id===sel.value);if(!x)return;msg('Bajando el CSV de '+x.piloto+'…');try{const j=await req('/storage/v1/object/sign/'+BK+'/'+x.archivo,{method:'POST',headers:J,body:JSON.stringify({expiresIn:120})});
-const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);load(await r.text(),`${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · tanda '+x.tanda:''}`)}catch(err){msg('No se pudo bajar el archivo: '+err.message)}}}catch(e){}})()}}
+const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);load(await r.text(),`${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · '+tLow(x.tanda):''}`)}catch(err){msg('No se pudo bajar el archivo: '+err.message)}}}catch(e){}})()}}
 const pg=document.body.dataset.page;
 const fn={h:v=>{v.innerHTML=mapSVG(D[0].best,'')},a:v=>CLOUD&&AUTH?vCmp(v):vA(v),r:vR,s:vS,d:vDr,c:vCoach}[pg];
 const view=()=>{stop();fn($('#view'))};
