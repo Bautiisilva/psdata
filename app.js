@@ -213,9 +213,19 @@ if(!CLOUD){h.innerHTML='';return}
 if(acc.includes(v)){h.className='phint ok';h.textContent='✓ Tiene cuenta: la sesión aparece en su perfil.';return}
 const sg=sugg(v);if(sg&&okNew!==v){h.className='phint warn';h.innerHTML=`¿Quisiste decir <b>${esc(sg)}</b>? <span class="pbtn"><button type="button" class="chipb" data-use="${esc(sg)}">Usar ${esc(sg)}</button><button type="button" class="chipb" data-new="1">No, es otro piloto</button></span>`;return}
 h.textContent=all.includes(v)?'Sin cuenta todavía: creásela en Drivers con este mismo nombre para que vea sus tandas.':'Piloto nuevo sin cuenta: se guarda igual y después le creás la cuenta en Drivers.'};
-const drawP=()=>{const w=$('#pwrap');if(!w.querySelector('input')){w.innerHTML=`<input name="piloto" list="dlp" required autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Elegí de la lista o escribí uno nuevo" value="${esc(lastOf('piloto'))}"><div class="phint" id="ph" role="status"></div>`;
-w.querySelector('input').oninput=()=>{okNew='';updHint()};
-w.onclick=e=>{const t=e.target.closest('button');if(!t)return;e.preventDefault();const inp=$('#fs').piloto;if(t.dataset.use){inp.value=t.dataset.use;okNew=''}else if(t.dataset.new){okNew=inp.value.trim()}updHint()}}
+const PNK='psdata-pilotos-nombres';
+const pilNames=()=>{const set=new Set([...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto),...lsGet(PNK,[])].filter(Boolean));return[...set].sort((a,b)=>a.localeCompare(b))};
+const setPil=n=>{const sel=$('#psel'),inp=$('#fs').piloto;if(!sel)return;sel.dataset.user='1';if(n&&[...sel.options].some(o=>o.value===n)){sel.value=n;inp.value=n;inp.hidden=true}else if(n==='__nuevo'||n){sel.value='__nuevo';inp.hidden=false;inp.value=n==='__nuevo'?'':n}else{sel.value='';inp.value='';inp.hidden=true}okNew='';updHint();if(typeof sugT==='function')sugT()};
+const drawP=()=>{const w=$('#pwrap');const ns=pilNames();
+if(!w.querySelector('#psel')){w.innerHTML=`<select id="psel" aria-label="Piloto"></select><input name="piloto" id="pnew" hidden autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Nombre del piloto nuevo"><div class="phint" id="ph" role="status"></div>`;
+const sel=$('#psel'),inp=$('#pnew');
+sel.onchange=()=>{sel.dataset.user='1';if(sel.value==='__nuevo'){inp.hidden=false;inp.value='';inp.focus()}else{inp.hidden=true;inp.value=sel.value}okNew='';updHint();if(typeof sugT==='function')sugT()};
+inp.oninput=()=>{okNew='';updHint()};
+w.onclick=e=>{const t=e.target.closest('button');if(!t)return;e.preventDefault();if(t.dataset.use){setPil(t.dataset.use)}else if(t.dataset.new){okNew=inp.value.trim();updHint()}};
+var first=true}
+const sel=$('#psel'),cur=sel.dataset.user?(sel.value==='__nuevo'?'__nuevo':sel.value):lastOf('piloto'),nuevo=$('#pnew').value;
+sel.innerHTML=`<option value="" disabled>Elegí el piloto</option>${ns.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}<option value="__nuevo">➕ Nuevo piloto…</option>`;
+if(cur==='__nuevo'){sel.value='__nuevo';$('#pnew').value=nuevo}else if(cur&&ns.includes(cur)){sel.value=cur;$('#pnew').value=cur;$('#pnew').hidden=true}else if(!ns.length){sel.value='__nuevo';$('#pnew').hidden=false}else{sel.value='';$('#pnew').value=''}
 updHint()};
 const drawD=()=>{const g={};S.forEach(x=>(g[x.piloto]=g[x.piloto]||[]).push(x));
 const names=Object.keys(g).sort((a,b)=>g[b].length-g[a].length||a.localeCompare(b)),acc=new Set(P.map(p=>p.nombre));
@@ -255,7 +265,8 @@ if(r.laps.length){LAPS=r.laps;fs.mv.value=fmtLap(r.best);partes.unshift(`${r.lap
 if(r.fecha&&typeof sugT==='function')sugT();ci.className='mut csvi '+(r.laps.length?'ok':'warn');ci.textContent='Leído del archivo: '+partes.join(' · ')+'.'+(r.laps.length?'':' No encontré tiempos de vuelta: escribí la mejor vuelta a mano.')}
 else{ci.className='mut csvi warn';ci.textContent=/\.csv$/i.test(fl.name)?'No encontré tiempos de vuelta en este CSV. Escribí la mejor vuelta a mano.':'Este archivo no es un CSV: no puedo leer los tiempos. Exportalo como CSV desde Race Studio 3 o escribí la mejor vuelta a mano.'}};
 $('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1,creado:new Date().toISOString()};['piloto','fecha','hora','tanda','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
-if(!x.piloto||!x.tanda||!x.pista||!x.tipo||!x.motor)return;x.tanda=+x.tanda;if(CLOUD&&!known().acc.includes(x.piloto)&&sugg(x.piloto)&&okNew!==x.piloto){updHint();$('#msg').textContent='Revisá el nombre del piloto antes de guardar.';e.target.piloto.focus();return}const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila en segundos (49.123) o en minutos y segundos (1:05.300).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
+if(!x.piloto){$('#msg').textContent=$('#psel')&&$('#psel').value==='__nuevo'?'Escribí el nombre del piloto nuevo.':'Elegí el piloto.';($('#psel')&&$('#psel').value==='__nuevo'?$('#pnew'):$('#psel')).focus();return}
+if(!x.tanda||!x.pista||!x.tipo||!x.motor)return;x.tanda=+x.tanda;if(CLOUD&&!known().acc.includes(x.piloto)&&sugg(x.piloto)&&okNew!==x.piloto){updHint();$('#msg').textContent='Revisá el nombre del piloto antes de guardar.';e.target.piloto.focus();return}const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila en segundos (49.123) o en minutos y segundos (1:05.300).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
 if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
 if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
 const m=fl.name.match(/\.([A-Za-z0-9]{1,8})$/),ext=m?'.'+m[1].toLowerCase():'';
@@ -264,7 +275,7 @@ btn.disabled=true;btn.textContent='Subiendo archivo…';$('#msg').textContent=''
 try{await stor(path,{method:'POST',headers:{'Content-Type':fl.type||'application/octet-stream','x-upsert':'false'},body:fl})}
 catch(err){btn.disabled=false;btn.textContent='Guardar sesión';$('#msg').textContent='No se pudo subir el archivo. Revisá la conexión y probá de nuevo. ('+err.message+')';return}
 btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;try{if(/\.csv$/i.test(fl.name)){const th=teorica(await fl.text());if(th){x.vuelta_teorica=th.teorica;x.microsectores=th}}}catch(err){}x.archivo_nombre=`${x.piloto} - ${x.fecha} - ${tLow(x.tanda)} - kart ${x.kart}${ext}`}
-S.push(x);const ok=saveS(S);open.add(x.piloto);fin.value='';fin.onchange();e.target.mv.value='';tTouched=false;sugT();
+S.push(x);const ok=saveS(S);open.add(x.piloto);lsSet(PNK,[...new Set([...lsGet(PNK,[]),x.piloto])]);drawP();setPil(x.piloto);fin.value='';fin.onchange();e.target.mv.value='';tTouched=false;sugT();
 $('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':''}.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
 $('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;

@@ -178,6 +178,8 @@
     'El CSV no trae microsectores ni GPS: la vuelta teórica es la mejor vuelta.': 'The CSV has no microsectors or GPS: the theoretical lap is the best lap.',
     'Ingresá con tu usuario (en Drivers) para ver la vuelta teórica de tus sesiones.': 'Sign in (in Drivers) to see the theoretical lap of your sessions.',
     'Velocidad GPS (km/h)': 'GPS speed (km/h)', 'Altitud (m)': 'Altitude (m)', 'Satélites GPS': 'GPS satellites', 'Distancia (m)': 'Distance (m)',
+    'Elegí el piloto': 'Pick the driver', '➕ Nuevo piloto…': '➕ New driver…', 'Nombre del piloto nuevo': 'New driver’s name',
+    'Escribí el nombre del piloto nuevo.': 'Type the new driver’s name.', 'Elegí el piloto.': 'Pick the driver.',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
