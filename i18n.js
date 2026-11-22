@@ -185,6 +185,9 @@
     'Práctica': 'Practice', 'Carrera': 'Race', 'Elegí el motor': 'Pick the engine',
     'Neumáticos': 'Tyres', 'Condición de pista': 'Track condition', 'Slicks': 'Slicks', 'Wets': 'Wets', 'Seco': 'Dry', 'Mojado': 'Wet', 'Húmedo': 'Damp',
     'Ninguna': 'None',
+    '📂 Abrir otro CSV…': '📂 Open another CSV…', 'Esta tanda': 'This run', 'Sesiones guardadas': 'Saved sessions',
+    'Ese CSV no tiene vueltas completas para comparar.': 'That CSV has no complete laps to compare.',
+    'Ojo: las dos vueltas tienen distinto largo. ¿Son de la misma pista?': 'Careful: the two laps have different lengths. Are they from the same track?',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -285,6 +288,7 @@
     [/^Curva (\d+) \((\d+) m\): frenada a (\d+) m del vértice, entrada (\d+), mínima (\d+), salida (\d+) km\/h/, 'Corner $1 ($2 m): braking $3 m before apex, entry $4, minimum $5, exit $6 km/h'],
     [/ · resto de las vueltas /, ' · other laps '],
     [/^OBSERVACIONES · /, 'NOTES · '],
+    [/ \(mejor\)$/, ' (best)'],
     [/^vuelta (\d+)$/, 'lap $1'],
     [/: vuelta (\d+) y vuelta (\d+)$/, ': lap $1 and lap $2'],
     [/\bVuelta (\d+)(?=[: ])/g, 'Lap $1'], [/ · iguales$/, ' · even'],
@@ -337,7 +341,7 @@
   }
   window.TR = tr;
 
-  var ATTR = ['placeholder', 'title', 'aria-label'];
+  var ATTR = ['placeholder', 'title', 'aria-label', 'label'];
   function fixNode(n) {
     if (n.nodeType === 3) {
       var p = n.parentNode;
