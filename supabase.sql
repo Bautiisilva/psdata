@@ -50,3 +50,5 @@ notify pgrst, 'reload schema';
 -- TANDA (agregado después): ver tanda.sql
 
 -- VUELTA TEÓRICA (agregado después): ver teorica.sql
+
+-- NEUMÁTICOS Y CONDICIÓN (agregado después): ver neumaticos.sql

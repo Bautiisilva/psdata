@@ -183,6 +183,7 @@
     'Editar sesión': 'Edit session', 'Guardar cambios': 'Save changes', 'Cancelar': 'Cancel', 'Guardando…': 'Saving…', 'Editar': 'Edit',
     'El archivo de esta sesión se mantiene: no hace falta volver a subirlo.': 'This session’s file is kept: no need to upload it again.',
     'Práctica': 'Practice', 'Carrera': 'Race', 'Elegí el motor': 'Pick the engine',
+    'Neumáticos': 'Tyres', 'Condición de pista': 'Track condition', 'Slicks': 'Slicks', 'Wets': 'Wets', 'Seco': 'Dry', 'Mojado': 'Wet', 'Húmedo': 'Damp',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -283,6 +284,7 @@
     [/^Curva (\d+) \((\d+) m\): frenada a (\d+) m del vértice, entrada (\d+), mínima (\d+), salida (\d+) km\/h/, 'Corner $1 ($2 m): braking $3 m before apex, entry $4, minimum $5, exit $6 km/h'],
     [/ · resto de las vueltas /, ' · other laps '],
     [/^OBSERVACIONES · /, 'NOTES · '],
+    [/ · Práctica(?= ·|$)/g, ' · Practice'], [/ · Carrera(?= ·|$)/g, ' · Race'], [/ · Seco(?= ·|$)/g, ' · Dry'], [/ · Mojado(?= ·|$)/g, ' · Wet'], [/ · Húmedo(?= ·|$)/g, ' · Damp'],
     [/^¡Muy bien, (.+)! 🙌 Tu mejor vuelta fue la número (\d+): ([\d:.]+)\.$/, 'Great job, $1! 🙌 Your best lap was number $2: $3.'],
     [/^Tus vueltas son casi iguales\. ¡Eso es ser muy parejo, como los grandes! 👏$/, 'Your laps are almost the same. That’s being very consistent, like the pros! 👏'],
     [/^(La curva|Las curvas) ([\d, ]+) (te sale|te salen) siempre bien\. ¡Genial! ✅$/, function (m, a, n) { return (a === 'La curva' ? 'Corner ' + n + ' always goes' : 'Corners ' + n + ' always go') + ' well. Awesome! ✅'; }],
