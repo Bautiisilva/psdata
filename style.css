@@ -266,3 +266,4 @@ ol.tips .tipc::before{content:counter(tip);position:absolute;top:-6px;left:-6px;
 #teov .teoc{margin-bottom:16px}
 .tipc{grid-template-columns:170px 1fr}
 @media(max-width:420px){.tipc{grid-template-columns:1fr}.pic{max-width:260px}}
+#pnew{margin-top:6px}
