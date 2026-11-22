@@ -181,13 +181,13 @@ async function vS(v){
 if(CLOUD&&!AUTH){const np=pendientes().length;gate(v,'Ingresá como administrador','La carga de sesiones es solo para el administrador. Los pilotos ven sus tandas en Drivers.',()=>vS(v));if(np)$('#lf h2').insertAdjacentHTML('afterend',`<div class="sync warn">Hay ${np} ${np===1?'sesión guardada':'sesiones guardadas'} solo en este navegador. Ingresá como administrador y se suben solas. No borres los datos del navegador hasta que se suban.</div>`);return}
 if(CLOUD){await whoami();if(!AUTH)return vS(v);
 if(AUTH.perfil.rol!=='admin'){v.innerHTML=ubar()+`<div class="card"><h2 class="h2">Solo para el administrador</h2><p>Tus tandas están en tu perfil.</p><a class="cta" href="drivers.html">Ir a Drivers</a></div>`;bindUbar();return}}
-let S=loadS(),P=lsGet(PK,[]),filt='',busy=false,again=false;const open=new Set();
+let S=loadS(),P=lsGet(PK,[]),filt='',busy=false,again=false,editId=null;const open=new Set();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 const now=new Date(),pad=n=>String(n).padStart(2,'0'),hoy=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,hora=`${pad(now.getHours())}:${pad(now.getMinutes())}`;
 const dl=(id,a)=>`<datalist id="${id}">${[...new Set(a)].map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`;
 const lastOf=k=>S.length?S[S.length-1][k]:'';
 const sel=(name,list,ph)=>`<select name="${name}" required><option value="" disabled${list.includes(lastOf(name))?'':' selected'}>${ph}</option>${list.map(t=>`<option${t===lastOf(name)?' selected':''}>${esc(t)}</option>`).join('')}</select>`;
-v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete="off"><h2>Nueva sesión</h2>
+v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete="off"><h2 id="fsh">Nueva sesión</h2><div class="editbar" id="eb" hidden></div>
 <label>Piloto<span id="pwrap"></span></label>
 <div class="pair"><label>Fecha<input name="fecha" type="date" required value="${hoy}"></label><label>Hora de la sesión<input name="hora" type="time" required value="${hora}"></label></div>
 <label>Pista${sel('pista',PISTAS,'Elegí la pista')}</label>
@@ -196,7 +196,7 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
 <label>Mejor vuelta <span class="opt">(se completa sola con el CSV)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 1:05.300"></label><div class="mut csvi" id="csvi"></div>
 <label class="drop">Archivo del logger <span class="opt">(opcional)</span><input name="archivo" type="file" id="fa"><span class="fn" id="fn">Tocá para elegir el archivo exportado (MyChron, AiM…)</span></label>
-<button class="cta" type="submit" id="gs">Guardar sesión</button><div class="mut" id="msg" role="status"></div></form>
+<button class="cta" type="submit" id="gs">Guardar sesión</button><button type="button" class="ghost gc" id="gc" hidden>Cancelar</button><div class="mut" id="msg" role="status"></div></form>
 <div class="stack"><div class="card col"><div class="head"><h2>Sesiones guardadas <span class="mut" id="cnt"></span></h2>
 <div class="tools"><select id="fp" aria-label="Filtrar por piloto"></select><button type="button" class="ghost" id="csv">Exportar CSV</button></div></div>
 <div class="sync" id="sync" role="status"></div>
@@ -238,7 +238,7 @@ const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.in
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(porCarga);
 $('#cnt').textContent='· '+rows.length;
-$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?tShort(x.tanda):'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td class="teo">${x.vuelta_teorica!=null?fmtLap(x.vuelta_teorica):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="11" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
+$('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.id===editId?' class="editing"':x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?tShort(x.tanda):'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td class="teo">${x.vuelta_teorica!=null?fmtLap(x.vuelta_teorica):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td class="acts"><button type="button" class="edt" data-id="${esc(x.id)}" title="Editar" aria-label="Editar la sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✎</button><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="11" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
 $('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
@@ -266,7 +266,7 @@ if(r.fecha&&typeof sugT==='function')sugT();ci.className='mut csvi '+(r.laps.len
 else{ci.className='mut csvi warn';ci.textContent=/\.csv$/i.test(fl.name)?'No encontré tiempos de vuelta en este CSV. Escribí la mejor vuelta a mano.':'Este archivo no es un CSV: no puedo leer los tiempos. Exportalo como CSV desde Race Studio 3 o escribí la mejor vuelta a mano.'}};
 $('#fs').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),x={id:uid(),p:1,creado:new Date().toISOString()};['piloto','fecha','hora','tanda','pista','kart','tipo','motor'].forEach(k=>x[k]=String(f.get(k)||'').trim());
 if(!x.piloto){$('#msg').textContent=$('#psel')&&$('#psel').value==='__nuevo'?'Escribí el nombre del piloto nuevo.':'Elegí el piloto.';($('#psel')&&$('#psel').value==='__nuevo'?$('#pnew'):$('#psel')).focus();return}
-if(!x.tanda||!x.pista||!x.tipo||!x.motor)return;x.tanda=+x.tanda;if(CLOUD&&!known().acc.includes(x.piloto)&&sugg(x.piloto)&&okNew!==x.piloto){updHint();$('#msg').textContent='Revisá el nombre del piloto antes de guardar.';e.target.piloto.focus();return}const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila en segundos (49.123) o en minutos y segundos (1:05.300).';e.target.mv.focus();return}x.mejor_vuelta=mv;x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
+if(!x.tanda||!x.pista||!x.tipo||!x.motor)return;x.tanda=+x.tanda;if(CLOUD&&!known().acc.includes(x.piloto)&&sugg(x.piloto)&&okNew!==x.piloto){updHint();$('#msg').textContent='Revisá el nombre del piloto antes de guardar.';e.target.piloto.focus();return}const mv=parseLap(f.get('mv'));if(Number.isNaN(mv)){$('#msg').textContent='La mejor vuelta no se entiende. Escribila en segundos (49.123) o en minutos y segundos (1:05.300).';e.target.mv.focus();return}x.mejor_vuelta=mv;if(editId){await guardarEdicion(x);return}x.vueltas=LAPS;const fl=fin.files[0],btn=$('#gs');
 if(fl){if(!CLOUD){$('#msg').textContent='Para adjuntar archivos hace falta la base de datos conectada.';return}
 if(fl.size>MAXF){$('#msg').textContent=`El archivo pesa ${fsize(fl.size)}. El máximo es 50 MB.`;return}
 const m=fl.name.match(/\.([A-Za-z0-9]{1,8})$/),ext=m?'.'+m[1].toLowerCase():'';
@@ -277,8 +277,19 @@ catch(err){btn.disabled=false;btn.textContent='Guardar sesión';$('#msg').textCo
 btn.disabled=false;btn.textContent='Guardar sesión';x.archivo=path;try{if(/\.csv$/i.test(fl.name)){const th=teorica(await fl.text());if(th){x.vuelta_teorica=th.teorica;x.microsectores=th}}}catch(err){}x.archivo_nombre=`${x.piloto} - ${x.fecha} - ${tLow(x.tanda)} - kart ${x.kart}${ext}`}
 S.push(x);const ok=saveS(S);open.add(x.piloto);lsSet(PNK,[...new Set([...lsGet(PNK,[]),x.piloto])]);drawP();setPil(x.piloto);fin.value='';fin.onchange();e.target.mv.value='';tTouched=false;sugT();
 $('#msg').textContent=ok?`Sesión de ${x.piloto} guardada${fl?' con su archivo':''}.`:'Se agregó a la tabla, pero este navegador no permite guardarla.';draw();sync()};
+function entrarEdicion(x){editId=x.id;const F=$('#fs');$('#fsh').textContent='Editar sesión';const eb=$('#eb');eb.hidden=false;eb.textContent=`${x.piloto} · ${fdate(x.fecha)} · ${x.tanda?tLbl(x.tanda):'sin tanda'}`;
+setPil(x.piloto);F.fecha.value=x.fecha;F.hora.value=String(x.hora||'').slice(0,5);tTouched=true;F.tanda.value=x.tanda?String(x.tanda):'';F.pista.value=x.pista||'';F.kart.value=x.kart;F.tipo.value=x.tipo||'';F.motor.value=x.motor||'';F.mv.value=x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'';
+$('.drop').hidden=true;$('#csvi').textContent='';$('#csvi').className='mut csvi';$('#gs').textContent='Guardar cambios';$('#gc').hidden=false;$('#msg').textContent=x.archivo?'El archivo de esta sesión se mantiene: no hace falta volver a subirlo.':'';draw();F.scrollIntoView({behavior:'smooth',block:'start'})}
+function salirEdicion(){editId=null;const F=$('#fs');$('#fsh').textContent='Nueva sesión';$('#eb').hidden=true;$('.drop').hidden=false;$('#gs').textContent='Guardar sesión';$('#gs').disabled=false;$('#gc').hidden=true;F.mv.value='';tTouched=false;const now=new Date(),pd=n=>String(n).padStart(2,'0');F.fecha.value=`${now.getFullYear()}-${pd(now.getMonth()+1)}-${pd(now.getDate())}`;F.hora.value=`${pd(now.getHours())}:${pd(now.getMinutes())}`;sugT();draw()}
+async function guardarEdicion(n){const o=S.find(s=>s.id===editId);if(!o){salirEdicion();return}
+const ch={piloto:n.piloto,fecha:n.fecha,hora:n.hora,tanda:n.tanda,pista:n.pista,kart:n.kart,tipo:n.tipo,motor:n.motor,mejor_vuelta:n.mejor_vuelta};
+if(o.archivo){const m=String(o.archivo_nombre||o.archivo).match(/\.([A-Za-z0-9]{1,8})$/),ext=m?'.'+m[1].toLowerCase():'';ch.archivo_nombre=`${n.piloto} - ${n.fecha} - ${tLow(n.tanda)} - kart ${n.kart}${ext}`}
+const btn=$('#gs');btn.disabled=true;btn.textContent='Guardando…';
+if(CLOUD&&!o.p){try{await api('?id=eq.'+encodeURIComponent(o.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({...ch,kart:parseInt(ch.kart,10)||0})})}catch(err){btn.disabled=false;btn.textContent='Guardar cambios';$('#msg').textContent='No se pudo guardar: '+err.message;return}}
+Object.assign(o,ch);saveS(S);lsSet(PNK,[...new Set([...lsGet(PNK,[]),n.piloto])]);open.add(n.piloto);salirEdicion();$('#msg').textContent=`Cambios guardados en la sesión de ${n.piloto}.`;if(o.p)sync()}
+$('#gc').onclick=()=>{salirEdicion();$('#msg').textContent=''};
 $('#fp').onchange=e=>{filt=e.target.value;draw()};
-$('#tb').onclick=async e=>{const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
+$('#tb').onclick=async e=>{const ed=e.target.closest('.edt');if(ed){const x=S.find(s=>s.id===ed.dataset.id);if(x)entrarEdicion(x);return}const b=e.target.closest('.del');if(!b)return;const x=S.find(s=>s.id===b.dataset.id);if(!x||!confirm(`¿Borrar la sesión de ${x.piloto} del ${fdate(x.fecha)} a las ${x.hora}?`))return;
 if(CLOUD){try{await api('?id=eq.'+encodeURIComponent(x.id),{method:'DELETE',headers:{Prefer:'return=minimal'}})}catch(err){$('#msg').textContent='No se pudo borrar: no hay conexión con la base de datos. Probá de nuevo en un rato.';return}}
 if(CLOUD&&x.archivo){$('#msg').textContent='Borrando archivo…';await stor(x.archivo,{method:'DELETE'}).catch(()=>{})}
 S=S.filter(s=>s.id!==x.id);saveS(S);$('#msg').textContent='Sesión borrada.';draw()};
