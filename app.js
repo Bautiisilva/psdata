@@ -67,7 +67,7 @@ v.querySelectorAll('td button').forEach(b=>b.onclick=()=>{st[b.dataset.k==='a'?'
 /* Sesiones y cuentas */
 const PISTAS=['HMS Clockwise','HMS Counter-Clockwise','HMS (sin horquilla)'];
 const TIPOS=['Shifter','L206','Rotax Sr','Rotax Jr','K100 Sr','K100 Jr','DD2','Micro Mini','Bambino'];
-const MOTORES=['60cc 2T','IAME X30 125cc','Rotax Max 125cc','Vortex 125cc','KZ 125cc (con cambios)','Honda GX 4T','Briggs & Stratton 4T','Eléctrico'];
+const MOTORES=['Práctica','Carrera'];
 const SK='psdata-sesiones',AK='psdata-auth',PK='psdata-drivers',DOM='@psdata.app',CFG=window.PSDATA_DB||{},CLOUD=!!(CFG.url&&CFG.key),BASE=CLOUD?CFG.url.replace(/\/+$/,''):'';
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
 const lsGet=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}};
@@ -193,7 +193,7 @@ v.innerHTML=ubar()+`<div class="ses"><form class="card col" id="fs" autocomplete
 <label>Pista${sel('pista',PISTAS,'Elegí la pista')}</label>
 <div class="pair"><label>Número de kart<input name="kart" type="number" inputmode="numeric" min="0" max="999" required placeholder="Ej: 17" value="${esc(lastOf('kart'))}"></label><label>Número de tanda<select name="tanda" required><option value="" disabled selected>Elegí</option>${[1,2,3,4,5,6,7,8,9,10,11,12].map(n=>`<option value="${n}">${tLbl(n)}</option>`).join('')}</select></label></div>
 <label>Tipo de kart${sel('tipo',TIPOS,'Elegí el tipo de kart')}</label>
-<label>Tipo de motor<input name="motor" list="dlm" required placeholder="Elegí o escribí" value="${esc(lastOf('motor'))}"></label>
+<label>Tipo de motor${sel('motor',MOTORES,'Elegí el motor')}</label>
 <label>Mejor vuelta <span class="opt">(se completa sola con el CSV)</span><input name="mv" inputmode="decimal" autocomplete="off" placeholder="Ej: 49.123 o 1:05.300"></label><div class="mut csvi" id="csvi"></div>
 <label class="drop">Archivo del logger <span class="opt">(opcional)</span><input name="archivo" type="file" id="fa"><span class="fn" id="fn">Tocá para elegir el archivo exportado (MyChron, AiM…)</span></label>
 <button class="cta" type="submit" id="gs">Guardar sesión</button><button type="button" class="ghost gc" id="gc" hidden>Cancelar</button><div class="mut" id="msg" role="status"></div></form>
@@ -239,7 +239,7 @@ $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<opt
 const rows=S.filter(x=>!filt||x.piloto===filt).sort(porCarga);
 $('#cnt').textContent='· '+rows.length;
 $('#tb').innerHTML=rows.length?rows.map(x=>`<tr${x.id===editId?' class="editing"':x.p&&CLOUD?' class="pend" title="Todavía no se subió a la nube"':''}><td>${esc(x.piloto)}</td><td>${fdate(x.fecha)}</td><td>${esc(x.hora)}</td><td class="c">${x.tanda?tShort(x.tanda):'<span class="mut">—</span>'}</td><td>${x.pista?esc(x.pista):'<span class="mut">—</span>'}</td><td class="num">${esc(x.kart)}</td><td>${esc(x.tipo)}</td><td class="t">${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'<span class="mut">—</span>'}</td><td class="teo">${x.vuelta_teorica!=null?fmtLap(x.vuelta_teorica):'<span class="mut">—</span>'}</td><td>${flink(x,'📎 Descargar')||'<span class="mut">—</span>'}</td><td class="acts"><button type="button" class="edt" data-id="${esc(x.id)}" title="Editar" aria-label="Editar la sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✎</button><button type="button" class="del" data-id="${esc(x.id)}" aria-label="Borrar sesión de ${esc(x.piloto)} del ${fdate(x.fecha)}">✕</button></td></tr>`).join(''):`<tr><td colspan="11" class="mut empty">${S.length?'No hay sesiones de este piloto.':'Todavía no cargaste ninguna sesión.'}</td></tr>`;
-$('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)])+dl('dlm',[...MOTORES,...S.map(x=>x.motor)]);
+$('#dls').innerHTML=dl('dlp',[...P.filter(p=>p.rol==='piloto').map(p=>p.nombre),...S.map(x=>x.piloto)]);
 drawD()};
 async function sync(){if(!CLOUD)return;if(busy){again=true;return}busy=true;setSt('busy','Sincronizando con la nube…');
 try{const pend=S.filter(x=>x.p);

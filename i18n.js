@@ -182,6 +182,7 @@
     'Escribí el nombre del piloto nuevo.': 'Type the new driver’s name.', 'Elegí el piloto.': 'Pick the driver.',
     'Editar sesión': 'Edit session', 'Guardar cambios': 'Save changes', 'Cancelar': 'Cancel', 'Guardando…': 'Saving…', 'Editar': 'Edit',
     'El archivo de esta sesión se mantiene: no hace falta volver a subirlo.': 'This session’s file is kept: no need to upload it again.',
+    'Práctica': 'Practice', 'Carrera': 'Race', 'Elegí el motor': 'Pick the engine',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
