@@ -189,6 +189,9 @@
     'Ese CSV no tiene vueltas completas para comparar.': 'That CSV has no complete laps to compare.',
     'Ojo: las dos vueltas tienen distinto largo. ¿Son de la misma pista?': 'Careful: the two laps have different lengths. Are they from the same track?',
     'Ordenar o agrupar': 'Sort or group', 'Orden de carga': 'Order added', 'Por fecha y hora': 'By date and time', 'Por piloto': 'By driver',
+    'Ver curva de cerca': 'See corner up close', 'Elegí la curva': 'Pick the corner', 'ahora': 'now', 'acá': 'here', 'afuera': 'outside', 'adentro': 'inside',
+    '¡Esta curva te sale muy bien! ✅ Seguí haciéndola igual.': 'You take this corner really well! ✅ Keep doing it the same way.',
+    'La rayita marca dónde empieza a frenar cada vuelta; el punto violeta, la velocidad más baja de la mejor vuelta.': 'The short line marks where each lap starts braking; the purple dot, the lowest speed of the best lap.',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -290,6 +293,13 @@
     [/^Curva (\d+) \((\d+) m\): frenada a (\d+) m del vértice, entrada (\d+), mínima (\d+), salida (\d+) km\/h/, 'Corner $1 ($2 m): braking $3 m before apex, entry $4, minimum $5, exit $6 km/h'],
     [/ · resto de las vueltas /, ' · other laps '],
     [/^OBSERVACIONES · /, 'NOTES · '],
+    [/^Curva (\d+) \((\d+) m\)$/, 'Corner $1 ($2 m)'],
+    [/^· a (\d+) m de la largada$/, '· $1 m from the start'],
+    [/^Tu mejor vuelta \(vuelta (\d+)\)$/, 'Your best lap (lap $1)'],
+    [/^Vuelta más lenta acá \(vuelta (\d+)\)$/, 'Slowest lap here (lap $1)'],
+    [/^frena a (\d+) m · entra a (\d+) km\/h · la más lenta (\d+) km\/h · sale a (\d+) km\/h/, 'brakes at $1 m · enters at $2 km/h · slowest $3 km/h · exits at $4 km/h'],
+    [/ · pierde ([\d.]+) s$/, ' · loses $1 s'],
+    [/^Contra (.+): (pierde|gana) ([\d.]+) s en esta curva \(frena a (\d+) m, la más lenta (\d+) km\/h\)\.$/, function (m, n, v, s, f, k) { return 'Against ' + n + ': ' + (v === 'pierde' ? 'loses ' : 'gains ') + s + ' s in this corner (brakes at ' + f + ' m, slowest ' + k + ' km/h).'; }],
     [/ \(mejor\)$/, ' (best)'],
     [/^vuelta (\d+)$/, 'lap $1'],
     [/: vuelta (\d+) y vuelta (\d+)$/, ': lap $1 and lap $2'],

@@ -280,3 +280,16 @@ form.col .gc{width:100%;margin-top:8px;padding:10px}
 .db tr.grp td .mut{font:400 13px Barlow,sans-serif}
 .tools{flex-wrap:wrap}
 .tools select{max-width:200px}
+/* Coach: ver curva de cerca */
+#co-cv .head select{width:auto;max-width:100%;margin-bottom:8px}
+.cvgrid{display:grid;gap:12px}
+.cvpic{background:var(--bg);border-radius:10px;padding:8px}
+.cvpic svg,.pic svg.cview{width:100%;height:auto;display:block;max-height:440px}
+.cvtxt h3{font:700 22px "Barlow Condensed",sans-serif;margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cvtxt h3 .mut{font:400 13px Barlow,sans-serif}
+.cvb{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;color:var(--bg);font:700 16px "Barlow Condensed",sans-serif}
+.cvtip{font-size:16px;line-height:1.5;background:var(--bg);border-radius:10px;padding:10px;margin:0 0 10px}
+.cvrow{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-bottom:8px}
+.cvrow .lg{display:inline-block;width:16px;height:6px;border-radius:3px;margin-top:7px;flex:none}
+.cpick{cursor:pointer}
+@media(min-width:900px){.cvgrid{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:start}}
