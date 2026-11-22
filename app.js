@@ -238,7 +238,7 @@ return`<details class="drv" data-n="${esc(n)}"${open.has(n)?' open':''}><summary
 :'<p class="mut">Cuando cargues sesiones, acá aparece cada piloto con todas sus tandas.</p>'};
 const draw=()=>{const ps=[...new Set(S.map(x=>x.piloto))].sort();if(filt&&!ps.includes(filt))filt='';
 $('#fp').innerHTML=`<option value="">Todos los pilotos</option>`+ps.map(p=>`<option${p===filt?' selected':''}>${esc(p)}</option>`).join('');
-const grp=$('#fg').value,rows=S.filter(x=>!filt||x.piloto===filt).sort(grp==='fecha'?(a,b)=>(b.fecha.localeCompare(a.fecha))||((a.hora||'').localeCompare(b.hora||''))||((+a.tanda||0)-(+b.tanda||0)):grp==='piloto'?(a,b)=>a.piloto.localeCompare(b.piloto)||desc(a,b):porCarga);
+const grp=$('#fg').value,rows=S.filter(x=>!filt||x.piloto===filt).sort(grp==='fecha'?(a,b)=>(b.fecha.localeCompare(a.fecha))||((b.hora||'').localeCompare(a.hora||''))||((+b.tanda||0)-(+a.tanda||0)):grp==='piloto'?(a,b)=>a.piloto.localeCompare(b.piloto)||desc(a,b):porCarga);
 const gKey=x=>grp==='fecha'?x.fecha:grp==='piloto'?x.piloto:null,gCnt={};rows.forEach(x=>{const k=gKey(x);if(k!=null)gCnt[k]=(gCnt[k]||0)+1});let gPrev=null;
 const gHead=x=>{const k=gKey(x);if(k==null||k===gPrev)return'';gPrev=k;const n=gCnt[k];return`<tr class="grp"><td colspan="11">${grp==='fecha'?flong(k):esc(k)} <span class="mut">· ${n} ${n===1?'sesión':'sesiones'}</span></td></tr>`};
 $('#cnt').textContent='· '+rows.length;
@@ -469,7 +469,7 @@ let vsRef=null;if(ref){const m=cornerM(ref.tr,Math.round(ia/N*(ref.tr.v.length-1
 const avg=k=>otros.length?otros.reduce((s,o)=>s+o[k],0)/otros.length:null;
 return{n:ci+1,ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});
 const O=telOrigin(TD),Pp=B.la.map((la,i)=>telXY(la,B.lo[i],O)),lossC=c=>Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),mxL=Math.max(.1,...C.map(lossC)),cc=c=>{const l=lossC(c);return l<.04?'#2DD4BF':l<mxL*.5?'#F2C14E':'#E4384A'};
-return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref,P:Pp,ds,cc}}
+return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref,P:Pp,ds,cc,O,trs:val}}
 /* Dibujitos para los consejos del Coach */
 const PICS={
 linea:`<svg viewBox="0 0 140 128" role="img" aria-label="Camino por la curva: de afuera hacia adentro y otra vez afuera"><path d="M40 112 V62 Q40 36 66 36 H140" fill="none" stroke="#2a3534" stroke-width="42"/><path d="M58 64 l3 -4" stroke="#E4384A" stroke-width="5"/><path d="M61 60 l4 -3" stroke="#fff" stroke-width="5"/><path d="M65 57 l4 -2" stroke="#E4384A" stroke-width="5"/><path d="M25 112 C25 84 34 66 58 58 C80 50 104 22 136 19" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"/><path d="M128 13 l9 6 -9 7" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"/><circle cx="25" cy="98" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="25" y="101.8" class="pl c">1</text><circle cx="56" cy="59" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="56" y="62.8" class="pl c">2</text><circle cx="112" cy="25" r="7.5" fill="var(--bg)" stroke="var(--acc)" stroke-width="2"/><text x="112" y="28.8" class="pl c">3</text><text x="70" y="125" class="pl c" style="font-size:9.5px">1 afuera → 2 adentro → 3 afuera</text></svg>`,
@@ -511,29 +511,38 @@ o.push({h:'🛠️ Para el entrenador (datos técnicos)',ul:[`Mejor vuelta ${fmt
 return o}
 const itT=i=>typeof i==='string'?i:i.t;
 const obsTxt=(o,x)=>[`OBSERVACIONES · ${x.piloto} · ${fdate(x.fecha)}${x.tanda?' · '+tLow(x.tanda):''}${x.pista?' · '+x.pista:''}`,'',...o.flatMap(s=>[s.h.toUpperCase(),...(s.t||[]),...(s.ol?(s.ol.length?s.ol.map((t,i)=>`${i+1}. ${itT(t)}`):[s.vacio]):[]),...(s.ul?(s.ul.length?s.ul.map(t=>'- '+itT(t)):[s.vacio]):[]),''])].join('\r\n');
-/* Dibujo de una curva real (GPS) con lo que hay que corregir */
-function cornerSVG(R,it){const c=it.c,P=R.P,N=P.length-1,ds=R.ds,im=c.mb.im,cl=i=>Math.max(0,Math.min(N,i)),at=i=>P[cl(i)];
-const k=it.pic,brk=k==='frenarTarde'||k==='frenarAntes',antes=brk?Math.max(50,(it.frenoMal||0)+14,(it.frenoBien||0)+14):55,despues=k==='acelerar'?Math.max(50,(c.mb.ie-im)*ds+45):45;
-const s0=cl(im-Math.round(antes/ds)),s1=cl(im+Math.round(despues/ds)),pts=P.slice(s0,s1+1);
-const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
-const span=Math.max(x1-x0,y1-y0,30),W=span/6,pad=W*1.5,cx=(x0+x1)/2,cy=(y0+y1)/2;let w=x1-x0+2*pad,h=y1-y0+2*pad;if(w<h*1.25)w=h*1.25;else if(h<w/1.6)h=w/1.6;
-const f=n=>n.toFixed(1),fs=W*0.62;
+/* Dibujo de una curva real (GPS), ajustado a la curva y con la pista en su ancho real */
+function cornerView(R,c,o={}){const P=R.P,N=P.length-1,ds=R.ds,cl=i=>Math.max(0,Math.min(N,i)),at=i=>P[cl(i)],RW=8;
+const hd=i=>{const a=at(i-3),b=at(i+3);return Math.atan2(b[1]-a[1],b[0]-a[0])},curv=i=>{let d=hd(i+3)-hd(i-3);while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return Math.abs(d)};let im=c.mb.im;{const w=Math.round(35/ds);let best=-1;for(let i=cl(c.mb.im-w);i<=cl(c.mb.im+Math.round(10/ds));i++){const v=curv(i);if(v>best){best=v;im=i}}}
+const k=o.kind||'linea',brk=k==='frenarTarde'||k==='frenarAntes'||k==='full',antes=Math.max(45,brk?Math.max(o.frenoMal||0,o.frenoBien||c.mb.freno||0)+18+Math.max(0,(c.mb.im-im)*ds):45),despues=k==='acelerar'?Math.max(45,(c.mb.ie-im)*ds+30):45;
+const s0=cl(im-Math.round(antes/ds)),s1=cl(im+Math.round(despues/ds)),pts=P.slice(s0,s1+1).filter(Boolean);
+let extra=[];if(o.slow&&o.slow.P)extra=o.slow.P.slice(cl(s0),cl(s1)+1).filter(Boolean);
+const f=n=>n.toFixed(1);
 const tan=i=>{const a=at(i-2),b=at(i+2),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1;return[dx/L,dy/L]};
-const tb=tan(im-Math.round(25/ds)),ta=tan(im+Math.round(25/ds)),turn=(tb[0]*ta[1]-tb[1]*ta[0])>=0?1:-1;
-const nin=i=>{const t=tan(i);return turn>0?[-t[1],t[0]]:[t[1],-t[0]]};
-const off=(i,k)=>{const p=at(i),n=nin(i);return[p[0]+n[0]*W*k,p[1]+n[1]*W*k]};
-const txt=(p,s,col='var(--ink)',anchor='middle')=>`<text x="${f(p[0])}" y="${f(p[1])}" text-anchor="${anchor}" dominant-baseline="middle" style="font:700 ${f(fs)}px Barlow,sans-serif" fill="${col}">${s}</text>`;
-const bar=(i,col,label)=>{const p=at(i),t=tan(i),n=[-t[1],t[0]],hh=W*0.75,l=off(i,-1.35);return`<line x1="${f(p[0]-n[0]*hh)}" y1="${f(p[1]-n[1]*hh)}" x2="${f(p[0]+n[0]*hh)}" y2="${f(p[1]+n[1]*hh)}" stroke="${col}" stroke-width="${f(W*0.2)}" stroke-linecap="round"/>${txt(l,label,col)}`};
+const tb=tan(im-Math.round(20/ds)),ta=tan(im+Math.round(20/ds)),turn=(tb[0]*ta[1]-tb[1]*ta[0])>=0?1:-1;
+const nin=i=>{const t=tan(i);return turn>0?[-t[1],t[0]]:[t[1],-t[0]]},off=(i,kk)=>{const p=at(i),n=nin(i);return[p[0]+n[0]*RW*kk,p[1]+n[1]*RW*kk]};
+const lbl=[];if(k==='linea'){const e=cl(im-Math.round(40/ds));lbl.push(off(e,-1.6),off(im,1.6))}else if(k==='frenarTarde'||k==='frenarAntes'){lbl.push(off(cl(c.mb.im-Math.round((o.frenoMal||0)/ds)),-1.55),off(cl(c.mb.im-Math.round((o.frenoBien||0)/ds)),1.55))}else if(k==='acelerar'){lbl.push(off(cl(c.mb.ie+Math.round(15/ds)),-1.7))}else if(k==='full'){lbl.push(off(im,1.9))}
+const bp=off(im,-1.7),base=[...pts,...extra,bp],sx=base.map(p=>p[0]),sy=base.map(p=>p[1]),span0=Math.max(Math.max(...sx)-Math.min(...sx),Math.max(...sy)-Math.min(...sy),30),fs=span0/(o.big?16:11);
+const xs=[...sx],ys=[...sy];lbl.forEach(p=>{xs.push(p[0]-fs*2.4,p[0]+fs*2.4);ys.push(p[1]-fs*0.8,p[1]+fs*0.8)});xs.push(bp[0]-fs,bp[0]+fs);ys.push(bp[1]-fs,bp[1]+fs);
+const pad=RW*0.9;let x0=Math.min(...xs)-pad,x1=Math.max(...xs)+pad,y0=Math.min(...ys)-pad,y1=Math.max(...ys)+pad;let w=x1-x0,h=y1-y0;const ar=o.big?1.45:1.25;if(w/h<ar/1.5){const d=h*ar/1.5-w;x0-=d/2;w+=d}else if(w/h>ar*1.5){const d=w/(ar*1.5)-h;y0-=d/2;h+=d}
+const txt=(p,s,col='var(--ink)')=>`<text x="${f(p[0])}" y="${f(p[1])}" text-anchor="middle" dominant-baseline="middle" style="font:700 ${f(fs)}px Barlow,sans-serif;paint-order:stroke;stroke:var(--bg);stroke-width:${f(fs*0.18)}px" fill="${col}">${s}</text>`;
+const pl=(arr,col,wd,dash='')=>`<polyline points="${arr.map(p=>f(p[0])+','+f(p[1])).join(' ')}" fill="none" stroke="${col}" stroke-width="${f(wd)}" stroke-linecap="round" stroke-linejoin="round"${dash?` stroke-dasharray="${dash}"`:''}/>`;
+const bar=(i,col,label,side)=>{const p=at(i),t=tan(i),n=[-t[1],t[0]],hh=RW*0.75,l=off(i,side*1.55);return`<line x1="${f(p[0]-n[0]*hh)}" y1="${f(p[1]-n[1]*hh)}" x2="${f(p[0]+n[0]*hh)}" y2="${f(p[1]+n[1]*hh)}" stroke="${col}" stroke-width="${f(RW*0.22)}" stroke-linecap="round"/>${label?txt(l,label,col):''}`};
 let ov='';
-if(k==='frenarTarde'||k==='frenarAntes'){const mal=cl(im-Math.round((it.frenoMal||0)/ds)),bien=cl(im-Math.round((it.frenoBien||0)/ds));ov+=bar(mal,'#E4384A','✗')+bar(bien,'var(--acc)','✓')}
-else if(k==='acelerar'){const a=cl(c.mb.ie),b=cl(c.mb.ie+Math.round(35/ds)),seg=P.slice(a,b+1);ov+=`<polyline points="${seg.map(p=>f(p[0])+','+f(p[1])).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="${f(W*0.22)}" stroke-linecap="round"/>`;const e=at(b),t=tan(b),n=[-t[1],t[0]],hd=W*0.45;ov+=`<path d="M${f(e[0]-t[0]*hd+n[0]*hd)} ${f(e[1]-t[1]*hd+n[1]*hd)} L${f(e[0]+t[0]*hd*0.6)} ${f(e[1]+t[1]*hd*0.6)} L${f(e[0]-t[0]*hd-n[0]*hd)} ${f(e[1]-t[1]*hd-n[1]*hd)}" fill="none" stroke="var(--acc)" stroke-width="${f(W*0.2)}" stroke-linecap="round" stroke-linejoin="round"/>`+txt(off(cl(c.mb.ie+Math.round(18/ds)),-1.5),'¡a fondo!','var(--acc)')}
-else{const e=cl(im-Math.round(55/ds)),x=cl(im+Math.round(50/ds)),line=[];for(let i=e;i<=x;i++){const u=i<=im?(i-e)/((im-e)||1):(x-i)/((x-im)||1),kk=-0.36+0.72*(0.5-0.5*Math.cos(Math.PI*u));line.push(off(i,kk))}
-ov+=`<polyline points="${line.map(p=>f(p[0])+','+f(p[1])).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="${f(W*0.14)}" stroke-linecap="round" stroke-dasharray="${f(W*0.35)} ${f(W*0.25)}"/>`;
-[[e,-0.36,'1'],[im,0.36,'2'],[x,-0.36,'3']].forEach(([i,kk,n])=>{const p=off(i,kk);ov+=`<circle cx="${f(p[0])}" cy="${f(p[1])}" r="${f(W*0.44)}" fill="var(--bg)" stroke="var(--acc)" stroke-width="${f(W*0.09)}"/>`+txt(p,n)})}
-const end=at(s1),te=tan(s1),ne=[-te[1],te[0]],ah=W*0.5,col=R.cc(c),ap=[cx-w/2+W*0.75,cy-h/2+W*0.75];
-return`<svg viewBox="${f(cx-w/2)} ${f(cy-h/2)} ${f(w)} ${f(h)}" role="img" aria-label="Curva ${c.n}"><path d="M${pts.map(p=>f(p[0])+' '+f(p[1])).join(' L')}" fill="none" stroke="#2a3534" stroke-width="${f(W)}" stroke-linejoin="round" stroke-linecap="round"/>
-<path d="M${f(end[0]-te[0]*ah+ne[0]*ah)} ${f(end[1]-te[1]*ah+ne[1]*ah)} L${f(end[0]+te[0]*ah*0.5)} ${f(end[1]+te[1]*ah*0.5)} L${f(end[0]-te[0]*ah-ne[0]*ah)} ${f(end[1]-te[1]*ah-ne[1]*ah)}" fill="none" stroke="var(--mut)" stroke-width="${f(W*0.12)}"/>${ov}
-<circle cx="${f(ap[0])}" cy="${f(ap[1])}" r="${f(W*0.6)}" fill="${col}"/>${txt(ap,c.n,'var(--bg)')}</svg>`}
+if(k==='frenarTarde'||k==='frenarAntes'){ov+=bar(cl(c.mb.im-Math.round((o.frenoMal||0)/ds)),'#E4384A','ahora',-1)+bar(cl(c.mb.im-Math.round((o.frenoBien||0)/ds)),'var(--acc)','acá',1)}
+else if(k==='acelerar'){const a=cl(c.mb.ie),b=cl(c.mb.ie+Math.round(30/ds));ov+=pl(P.slice(a,b+1),'var(--acc)',RW*0.3);const e=at(b),t=tan(b),n=[-t[1],t[0]],hd=RW*0.6;ov+=`<path d="M${f(e[0]-t[0]*hd+n[0]*hd)} ${f(e[1]-t[1]*hd+n[1]*hd)} L${f(e[0]+t[0]*hd*0.6)} ${f(e[1]+t[1]*hd*0.6)} L${f(e[0]-t[0]*hd-n[0]*hd)} ${f(e[1]-t[1]*hd-n[1]*hd)}" fill="none" stroke="var(--acc)" stroke-width="${f(RW*0.25)}" stroke-linecap="round" stroke-linejoin="round"/>`+txt(off(cl(c.mb.ie+Math.round(15/ds)),-1.7),'¡a fondo!','var(--acc)')}
+else if(k==='linea'){const e=cl(im-Math.round(40/ds)),x=cl(im+Math.round(40/ds)),ln=[];for(let i=e;i<=x;i++){const u=i<=im?(i-e)/((im-e)||1):(x-i)/((x-im)||1);ln.push(off(i,-0.34+0.68*(0.5-0.5*Math.cos(Math.PI*u))))}
+ov+=pl(ln,'var(--acc)',RW*0.18,`${f(RW*0.5)} ${f(RW*0.3)}`);[[e,-0.34,'1'],[im,0.34,'2'],[x,-0.34,'3']].forEach(([i,kk,n])=>{const p=off(i,kk);ov+=`<circle cx="${f(p[0])}" cy="${f(p[1])}" r="${f(RW*0.42)}" fill="var(--bg)" stroke="var(--acc)" stroke-width="${f(RW*0.1)}"/>`+txt(p,n)});
+ov+=txt(off(e,-1.6),'afuera','var(--acc)')+txt(off(im,1.6),'adentro','var(--acc)')}
+else if(k==='full'){if(o.slow){ov+=pl(o.slow.P.slice(cl(s0),cl(s1)+1).filter(Boolean),'#FF8A3D',RW*0.16,`${f(RW*0.45)} ${f(RW*0.25)}`);if(o.slow.ib!=null)ov+=bar(cl(o.slow.ib),'#FF8A3D','',0)}
+ov+=pl(pts,'var(--acc)',RW*0.16);ov+=bar(cl(c.mb.ib),'var(--acc)','',0);const ap=at(im);ov+=`<circle cx="${f(ap[0])}" cy="${f(ap[1])}" r="${f(RW*0.28)}" fill="var(--mv)"/>`+txt(off(im,1.9),Math.round(c.mb.vmin)+' km/h','var(--mv)')}
+const end=at(s1),te=tan(s1),ne=[-te[1],te[0]],ah=RW*0.55,col=R.cc(c);
+return`<svg viewBox="${f(x0)} ${f(y0)} ${f(w)} ${f(h)}" class="cview" role="img" aria-label="Curva ${c.n}"><polyline points="${pts.map(p=>f(p[0])+','+f(p[1])).join(' ')}" fill="none" stroke="#2a3534" stroke-width="${RW}" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M${f(end[0]-te[0]*ah+ne[0]*ah)} ${f(end[1]-te[1]*ah+ne[1]*ah)} L${f(end[0]+te[0]*ah*0.6)} ${f(end[1]+te[1]*ah*0.6)} L${f(end[0]-te[0]*ah-ne[0]*ah)} ${f(end[1]-te[1]*ah-ne[1]*ah)}" fill="none" stroke="var(--mut)" stroke-width="${f(RW*0.14)}" stroke-linecap="round" stroke-linejoin="round"/>${ov}
+<circle cx="${f(bp[0])}" cy="${f(bp[1])}" r="${f(fs*0.95)}" fill="${col}" stroke="var(--bg)" stroke-width="${f(fs*0.15)}"/><text x="${f(bp[0])}" y="${f(bp[1])}" text-anchor="middle" dominant-baseline="central" style="font:700 ${f(fs*1.1)}px Barlow,sans-serif" fill="#06100f">${c.n}</text></svg>`}
+function cornerSVG(R,it){return cornerView(R,it.c,{kind:it.pic,frenoMal:it.frenoMal,frenoBien:it.frenoBien})}
+/* Datos de la vuelta más lenta en una curva, para el dibujo grande */
+function slowIn(R,c){if(!c.otros.length)return null;const w=c.otros.reduce((p,q)=>q.loss>p.loss?q:p,c.otros[0]),t=(R.trs||[]).find(x=>x.lap.n===w.n);if(!t)return null;return{n:w.n,loss:w.loss,P:t.tr.la.map((la,i)=>telXY(la,t.tr.lo[i],R.O)),ib:w.ib,m:w}}
 const itH=(i,R)=>{if(typeof i==='string')return esc(i);let pic='';try{pic=i.c&&R&&R.P?cornerSVG(R,i):(i.pic&&PICS[i.pic]||'')}catch(e){pic=i.pic&&PICS[i.pic]||''}return`<div class="tipc">${pic?`<div class="pic">${pic}</div>`:''}<div class="tipt">${esc(i.t)}</div></div>`};
 async function vCoach(v){
 if(!CLOUD){v.innerHTML='<div class="card"><p>Para el Coach hace falta conectar la base de datos.</p></div>';return}
@@ -546,6 +555,7 @@ let cur=lsGet('psdata-coach','');if(!S.some(x=>x.id===cur))cur=S[0].id;let refId
 v.innerHTML=ubar()+`<div class="coach"><aside class="card col cdata"><h2>Datos</h2><p class="mut sm">Sesiones guardadas con su CSV, por piloto y día.</p><div id="co-tree"></div></aside>
 <section class="cmid"><div class="card col"><div class="head"><h2 id="co-tit">Sesión</h2></div><div class="mut" id="co-sub"></div><label class="refl">Comparar con <span class="opt">(opcional)</span><select id="co-ref"></select></label><div id="co-sum"></div></div>
 <div class="card col"><h2>Mapa de curvas</h2><p class="mut sm">Cada curva va del color de cuánto tiempo se pierde ahí.</p><div id="co-map"></div></div>
+<div class="card col" id="co-cv"><div class="head"><h2>Ver curva de cerca</h2><select id="co-cs" aria-label="Elegí la curva"></select></div><div id="co-cvb"></div></div>
 <div class="card col"><h2>Vueltas</h2><div id="co-laps"></div></div></section>
 <aside class="card col cobs"><div class="head"><h2>📄 Observaciones</h2><button type="button" class="ghost" id="co-dl">Descargar</button></div><div id="co-obs" class="obs"></div></aside></div>`;bindUbar();
 const tree=()=>{const g={};S.forEach(x=>((g[x.piloto]=g[x.piloto]||{})[x.fecha]=g[x.piloto][x.fecha]||[]).push(x));
@@ -567,9 +577,24 @@ $('#co-laps').innerHTML=`<table class="db sect"><thead><tr><th>Vuelta</th><th>Ti
 // mapa
 const O=telOrigin(td),P=R.B.la.map((la,i)=>telXY(la,R.B.lo[i],O)),xs=P.map(p=>p[0]),ys=P.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.1,s=Math.max(x1-x0,y1-y0)/100;
 const cc=x=>x;
-const marks=R.C.map(c=>{const p=P[c.ia],seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${R.cc(c)}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${R.cc(c)}"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
+const marks=R.C.map(c=>{const p=P[c.ia],seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${R.cc(c)}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${R.cc(c)}" data-c="${c.n}" class="cpick"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
 $('#co-map').innerHTML=`<svg class="gsvg cmmap" viewBox="${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}" role="img" aria-label="Mapa de curvas"><path d="M${P.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round"/>${marks}</svg><div class="gleg mut"><span class="lg" style="background:#2DD4BF"></span>sin pérdida<span class="lg" style="background:#F2C14E"></span>pierde algo<span class="lg" style="background:#E4384A"></span>pierde más</div>`;
 const o=observaciones(R,x,refx);obsCache=obsTxt(o,x);
+const cs=$('#co-cs'),worst=R.C.slice().sort((p,q)=>Math.max(q.avgLoss,q.vsRef?q.vsRef.loss:0)-Math.max(p.avgLoss,p.vsRef?p.vsRef.loss:0))[0];
+cs.innerHTML=R.C.map(c=>`<option value="${c.n}">Curva ${c.n} (${c.dist} m)</option>`).join('');
+const showCurve=n=>{const c=R.C.find(z=>z.n===+n);if(!c){$('#co-cvb').innerHTML='<p class="mut">No se detectaron curvas en esta tanda.</p>';return}cs.value=String(c.n);
+const sl=slowIn(R,c),lossC=Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),k=c.otros.length?consejo(c.dFreno,c.dMin,c.dEx,c.n):null;
+const fila=(t,col,m,extra)=>`<div class="cvrow"><span class="lg" style="background:${col}"></span><div><b>${t}</b><br>frena a ${r0(m.freno)} m · entra a ${r0(m.vin)} km/h · la más lenta ${r0(m.vmin)} km/h · sale a ${r0(m.vex)} km/h${extra||''}</div></div>`;
+$('#co-cvb').innerHTML=`<div class="cvgrid"><div class="cvpic">${cornerView(R,c,{kind:'full',big:true,slow:sl})}</div><div class="cvtxt">
+<h3><span class="cvb" style="background:${R.cc(c)}">${c.n}</span> Curva ${c.n} <span class="mut">· a ${c.dist} m de la largada</span></h3>
+${lossC>0.04&&k?`<p class="cvtip">${esc(k.t)} Si lo hacés, ganás ${esc(segs(c.avgLoss))}. 🏁</p>`:`<p class="cvtip">¡Esta curva te sale muy bien! ✅ Seguí haciéndola igual.</p>`}
+${fila(`Tu mejor vuelta (vuelta ${R.best.n})`,'var(--acc)',c.mb)}
+${sl?fila(`Vuelta más lenta acá (vuelta ${sl.n})`,'#FF8A3D',sl.m,` · pierde ${sl.loss.toFixed(3)} s`):''}
+${c.vsRef&&refx?`<p class="mut sm">Contra ${esc(refx.piloto)}: ${c.vsRef.loss>=0?'pierde':'gana'} ${Math.abs(c.vsRef.loss).toFixed(3)} s en esta curva (frena a ${r0(c.vsRef.freno)} m, la más lenta ${r0(c.vsRef.vmin)} km/h).</p>`:''}
+<p class="mut sm">La rayita marca dónde empieza a frenar cada vuelta; el punto violeta, la velocidad más baja de la mejor vuelta.</p></div></div>`};
+cs.onchange=e=>showCurve(e.target.value);
+$('#co-map').onclick=e=>{const t=e.target.closest('[data-c]');if(t){showCurve(t.dataset.c);if(innerWidth<1100)$('#co-cv').scrollIntoView({behavior:'smooth',block:'start'})}};
+showCurve(worst?worst.n:(R.C[0]||{}).n);
 $('#co-obs').innerHTML=o.map(sct=>`<h3>${esc(sct.h)}</h3>${(sct.t||[]).map(t=>`<p>${esc(t)}</p>`).join('')}${sct.ol?(sct.ol.length?`<ol class="tips">${sct.ol.map(t=>`<li>${itH(t,R)}</li>`).join('')}</ol>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}${sct.ul?(sct.ul.length?`<ul${sct.ul.some(t=>typeof t!=='string')?' class="tips"':''}>${sct.ul.map(t=>`<li>${itH(t,R)}</li>`).join('')}</ul>`:`<p class="mut">${esc(sct.vacio)}</p>`):''}`).join('')}
 catch(e){if(my===rid)$('#co-obs').innerHTML=`<p class="mut">No se pudo analizar: ${esc(e.message)}</p>`}}
 const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?tLbl(x.tanda):'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
