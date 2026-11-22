@@ -642,20 +642,20 @@ let lapNums=null,lapTimes=null;if(!m.length&&lapJ>=0){const lc=lapCol(txt);if(lc
 return{T,LA,LO,V,DI,CH,chans,ok,lapNums,lapTimes,markers:m.sort((a,b)=>a-b),speedCol:iS>=0?H[iS]:null,speedUnit:iS>=0?(unidades[iS]||'km/h'):'km/h'}}
 function vGPS(el){
 el.innerHTML=`<section class="card col gpsc"><div class="head"><h2>GPS de la tanda</h2><div class="tools gtools"><select id="gs-ses" aria-label="Sesión guardada" hidden></select><label class="ghost filebtn">Abrir CSV<input type="file" accept=".csv,text/csv" id="gs-file" hidden></label></div></div>
-<div class="gsel" hidden id="gs-sel"><label>Vuelta<select id="gs-lap"></select></label><label>Dato<select id="gs-ch"></select></label></div>
+<div class="gsel" hidden id="gs-sel"><label>Vuelta<select id="gs-lap"></select></label><label>Comparar con<select id="gs-lap2"></select></label><label>Dato<select id="gs-ch"></select></label></div>
 <div class="gwrap" id="gs-wrap" hidden><div class="gmap" id="gs-map"></div><div class="gchart"><div id="gs-chart"></div><div class="read" id="gs-read"></div></div></div>
 <p class="mut" id="gs-msg"></p></section>`;
-const msg=t=>{$('#gs-msg').textContent=t||''};let TD=null,lap=null,chJ=null,cur=0;
+const msg=t=>{$('#gs-msg').textContent=t||''};let TD=null,lap=null,lap2=null,chJ=null,cur=0;
 msg(CLOUD&&AUTH?'Elegí una sesión guardada con su CSV, o abrí un CSV de la compu.':'Abrí un CSV exportado de la MyChron. Si ingresás con tu usuario (en Drivers), también podés elegir tus sesiones guardadas.');
 const vcol=(v,a,b)=>{const t=Math.max(0,Math.min(1,(v-a)/((b-a)||1)));return`rgb(${Math.round(228+(45-228)*t)},${Math.round(56+(212-56)*t)},${Math.round(74+(191-74)*t)})`};
 const laps=()=>telLaps(TD);
 let L=[];
 function load(txt,nombre){const r=parseTelemetry(txt);if(r.error){$('#gs-wrap').hidden=true;$('#gs-sel').hidden=true;msg(r.error);return}
-TD=r;L=laps();const best=telBest(L);lap=best;
+TD=r;L=laps();const best=telBest(L);lap=best;lap2=null;
 $('#gs-lap').innerHTML=L.map((x,i)=>`<option value="${i}"${x===best?' selected':''}>${x.n?`Vuelta ${x.n} · ${fmtLap(x.t)}${x===best&&L.length>1?' (mejor)':''}`:'Toda la sesión'}</option>`).join('');
 const sp=TD.chans.find(c=>c.name===TD.speedCol);chJ=sp?sp.j:(TD.chans[0]||{}).j;
 $('#gs-ch').innerHTML=TD.chans.map(c=>`<option value="${c.j}"${c.j===chJ?' selected':''}>${esc(chLabel(c.name,c.unit))}</option>`).join('');
-$('#gs-wrap').hidden=false;$('#gs-sel').hidden=false;msg((nombre?nombre+' · ':'')+`${L.filter(x=>x.n).length||1} ${L.filter(x=>x.n).length===1?'vuelta':'vueltas'} · ${TD.T.length} puntos de GPS. Mové el cursor sobre el gráfico (o tocá la pista) para ver dónde estaba el kart.`);draw()}
+fillLap2();$('#gs-wrap').hidden=false;$('#gs-sel').hidden=false;msg((nombre?nombre+' · ':'')+`${L.filter(x=>x.n).length||1} ${L.filter(x=>x.n).length===1?'vuelta':'vueltas'} · ${TD.T.length} puntos de GPS. Mové el cursor sobre el gráfico (o tocá la pista) para ver dónde estaba el kart.`);draw()}
 let P=null,VB=null;
 function proj(){const ii=TD.LA.map((_,i)=>i).filter(i=>TD.ok[i]),la0=ii.reduce((s,i)=>s+TD.LA[i],0)/ii.length,lo0=ii.reduce((s,i)=>s+TD.LO[i],0)/ii.length,k=Math.cos(la0*Math.PI/180);
 P=TD.LA.map((a,i)=>TD.ok[i]?[(TD.LO[i]-lo0)*k*111320,-(a-la0)*110540]:null);const xs=ii.map(i=>P[i][0]),ys=ii.map(i=>P[i][1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.06;VB=[x0-pad,y0-pad,x1-x0+2*pad,y1-y0+2*pad]}
@@ -663,9 +663,9 @@ function draw(){proj();const s=Math.max(VB[2],VB[3])/100,a=lap.a,b=lap.b,V=TD.V,
 const all=P.filter(Boolean).map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L');
 const step=Math.max(1,Math.ceil((b-a)/700));let seg='';for(let i=a;i+step<b;i+=step){const p=P[i],q=P[i+step];if(p&&q)seg+=`<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${isNaN(V[i])?'var(--acc)':vcol(V[i],vmin,vmax)}" stroke-width="${(s*1.1).toFixed(2)}" stroke-linecap="round"/>`}
 const p0=P.slice(a,b).find(Boolean)||[0,0];
-$('#gs-map').innerHTML=`<svg viewBox="${VB.map(x=>x.toFixed(1)).join(' ')}" class="gsvg" role="img" aria-label="Trazado GPS de la vuelta"><path d="M${all}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round" stroke-linecap="round"/>${seg}<circle cx="${p0[0].toFixed(1)}" cy="${p0[1].toFixed(1)}" r="${(s*.9).toFixed(2)}" fill="none" stroke="var(--ink)" stroke-width="${(s*.4).toFixed(2)}"/><circle id="gs-dot" r="${(s*1.6).toFixed(2)}" fill="var(--mv)" stroke="var(--surf)" stroke-width="${(s*.5).toFixed(2)}"/></svg>
-<div class="gleg mut"><span class="lg" style="background:rgb(228,56,74)"></span>más lento<span class="lg" style="background:rgb(45,212,191)"></span>más rápido</div>`;
-drawChart();setCur(a)}
+$('#gs-map').innerHTML=`<svg viewBox="${VB.map(x=>x.toFixed(1)).join(' ')}" class="gsvg" role="img" aria-label="Trazado GPS de la vuelta"><path d="M${all}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round" stroke-linecap="round"/>${seg}<circle cx="${p0[0].toFixed(1)}" cy="${p0[1].toFixed(1)}" r="${(s*.9).toFixed(2)}" fill="none" stroke="var(--ink)" stroke-width="${(s*.4).toFixed(2)}"/>${lap2?`<circle id="gs-dot2" r="${(s*1.6).toFixed(2)}" fill="#FF8A3D" stroke="var(--surf)" stroke-width="${(s*.5).toFixed(2)}"/>`:''}<circle id="gs-dot" r="${(s*1.6).toFixed(2)}" fill="var(--mv)" stroke="var(--surf)" stroke-width="${(s*.5).toFixed(2)}"/></svg>
+<div class="gleg mut"><span class="lg" style="background:rgb(228,56,74)"></span>más lento<span class="lg" style="background:rgb(45,212,191)"></span>más rápido${lap2?`<span class="lg" style="background:var(--mv)"></span>vuelta ${lap.n}<span class="lg" style="background:#FF8A3D"></span>vuelta ${lap2.n}`:''}</div>`;
+if(lap2){drawCmp();setCmp(0)}else{drawChart();setCur(a)}}
 let CX=null;
 function drawChart(){const a=lap.a,b=lap.b,Y=TD.CH[chJ]||[],T=TD.T,t0=T[a],dur=T[b-1]-t0||1,ys=Y.slice(a,b).filter(x=>!isNaN(x));let y0=ys.length?Math.min(...ys):0,y1=ys.length?Math.max(...ys):1;const pd=(y1-y0)*.08||1;y0-=pd;y1+=pd;
 const X=t=>44+(t-t0)/dur*680,YY=v=>12+(y1-v)/(y1-y0)*236;CX={X,t0,dur};
@@ -676,13 +676,31 @@ const c=TD.chans.find(x=>x.j===chJ)||{name:'',unit:''};
 $('#gs-chart').innerHTML=`<svg viewBox="0 0 740 276" class="chart gchartsvg" id="gs-svg" role="img" aria-label="${esc(c.name)} durante la vuelta">${grid}<polyline fill="none" stroke="var(--acc)" stroke-width="2" points="${pts}"/><line id="gs-cur" y1="8" y2="252" stroke="var(--mv)" stroke-width="2"/></svg>`;
 const svg=$('#gs-svg'),mv=e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*740,t=t0+(x-44)/680*dur;let i=a;while(i<b-1&&T[i]<t)i++;setCur(i)};
 svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',mv)}
+function fillLap2(){const opts=L.filter(x=>x.n&&x!==lap);const sel=$('#gs-lap2');sel.innerHTML='<option value="">Ninguna</option>'+opts.map(x=>`<option value="${L.indexOf(x)}"${x===lap2?' selected':''}>Vuelta ${x.n} · ${fmtLap(x.t)}</option>`).join('');sel.disabled=!opts.length}
+let CA=null,CB=null,CS=0;
+const prep=lp=>{const a=lp.a,b=lp.b,T=TD.T,Y=TD.CH[chJ]||[],D=[];const hasD=!isNaN(TD.DI[a])&&!isNaN(TD.DI[b-1])&&TD.DI[b-1]>TD.DI[a];
+if(hasD)for(let i=a;i<b;i++)D.push(TD.DI[i]-TD.DI[a]);else{let acc=0,prev=null;for(let i=a;i<b;i++){const p=P[i]||prev;if(prev&&p)acc+=Math.hypot(p[0]-prev[0],p[1]-prev[1]);D.push(acc);if(p)prev=p}}
+const len=D[D.length-1]||1,N=600,o={idx:[],t:[],y:[],len};let j=0;for(let k=0;k<=N;k++){const d=k/N*len;while(j<D.length-2&&D[j+1]<d)j++;const i=a+j;o.idx.push(i);o.t.push(T[i]-T[a]);o.y.push(Y[i])}
+const kk=lp.t/(o.t[N]||1);o.t=o.t.map(x=>x*kk);return o};
+function drawCmp(){CA=prep(lap);CB=prep(lap2);const N=CA.y.length-1,ys=[...CA.y,...CB.y].filter(x=>!isNaN(x));let y0=ys.length?Math.min(...ys):0,y1=ys.length?Math.max(...ys):1;const pd=(y1-y0)*.08||1;y0-=pd;y1+=pd;
+const X=k=>44+k/N*680,YY=v=>12+(y1-v)/(y1-y0)*170,dl=CA.t.map((t,k)=>CB.t[k]-t),m=Math.max(.1,Math.max(...dl.map(Math.abs))*1.2),Z=d=>236-d/m*24;CX={X,N};
+const line=(o,c)=>{let p='';o.y.forEach((v,k)=>{if(!isNaN(v))p+=X(k).toFixed(1)+','+YY(v).toFixed(1)+' '});return`<polyline fill="none" stroke="${c}" stroke-width="2" points="${p}"/>`};
+let g='';for(let k=0;k<=4;k++){const v=y0+(y1-y0)*k/4;g+=`<line x1="44" x2="724" y1="${YY(v)}" y2="${YY(v)}" stroke="var(--line)"/><text x="0" y="${YY(v)+4}">${Math.abs(v)>=100?Math.round(v):v.toFixed(1)}</text>`}
+const stepM=CA.len>2500?500:CA.len>1200?200:100;for(let d=0;d<=CA.len;d+=stepM)g+=`<text x="${(X(d/CA.len*N)-8).toFixed(1)}" y="272">${d}m</text>`;
+const c=TD.chans.find(x=>x.j===chJ)||{name:'',unit:''};
+$('#gs-chart').innerHTML=`<svg viewBox="0 0 740 276" class="chart gchartsvg" id="gs-svg" role="img" aria-label="${esc(chLabel(c.name,c.unit))}: vuelta ${lap.n} y vuelta ${lap2.n}">${g}${line(CB,'#FF8A3D')}${line(CA,'var(--acc)')}
+<text x="44" y="204">Diferencia de tiempo: arriba, Vuelta ${lap.n} va adelante</text><line x1="44" x2="724" y1="236" y2="236" stroke="var(--line)"/><polyline fill="none" stroke="var(--ink)" stroke-width="1.6" points="${dl.map((d,k)=>X(k).toFixed(1)+','+Z(d).toFixed(1)).join(' ')}"/><line id="gs-cur" y1="8" y2="262" stroke="var(--mv)" stroke-width="2"/></svg>`;
+const svg=$('#gs-svg'),mv=e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*740;setCmp(Math.max(0,Math.min(N,Math.round((x-44)/680*N))))};svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',mv)}
+function setCmp(k){CS=k;const N=CX.N,ia=CA.idx[k],ib=CB.idx[k];[['#gs-dot',P[ia]],['#gs-dot2',P[ib]]].forEach(([id,p])=>{const e=$(id);if(e&&p){e.setAttribute('cx',p[0]);e.setAttribute('cy',p[1])}});
+const x=CX.X(k);$('#gs-cur').setAttribute('x1',x);$('#gs-cur').setAttribute('x2',x);const c=TD.chans.find(z=>z.j===chJ)||{name:'',unit:''},f=v=>isNaN(v)?'—':(Math.abs(v)>=100?Math.round(v):v.toFixed(1)),d=CB.t[k]-CA.t[k],uu=c.unit||hUnit(c.name),u=uu?' '+uu:'';
+$('#gs-read').textContent=`${Math.round(k/N*CA.len)} m · Vuelta ${lap.n}: ${f(CA.y[k])}${u} · Vuelta ${lap2.n}: ${f(CB.y[k])}${u} · ${Math.abs(d)<0.0005?'iguales':`Vuelta ${d>=0?lap2.n:lap.n} +${Math.abs(d).toFixed(3)} s`}`}
 function setCur(i){cur=i;const p=P[i],dot=$('#gs-dot');if(p&&dot){dot.setAttribute('cx',p[0]);dot.setAttribute('cy',p[1])}
 const x=CX.X(TD.T[i]);$('#gs-cur').setAttribute('x1',x);$('#gs-cur').setAttribute('x2',x);
 const c=TD.chans.find(x=>x.j===chJ)||{name:'',unit:''},val=(TD.CH[chJ]||[])[i],dist=!isNaN(TD.DI[i])&&!isNaN(TD.DI[lap.a])?TD.DI[i]-TD.DI[lap.a]:null;
 $('#gs-read').textContent=`${lap.n?'Vuelta '+lap.n+' · ':''}${(TD.T[i]-TD.T[lap.a]).toFixed(2)} s${dist!=null?' · '+Math.round(dist)+' m':''}${!isNaN(TD.V[i])&&c.name!==TD.speedCol?' · '+Math.round(TD.V[i])+' '+TD.speedUnit:''} · ${chLabel(c.name,c.unit).replace(/ \(.*\)$/,'')}: ${isNaN(val)?'—':(Math.abs(val)>=100?Math.round(val):val.toFixed(1))}${c.unit?' '+c.unit:''}`}
 $('#gs-map').addEventListener('pointerdown',e=>{const svg=e.target.closest('svg');if(!svg||!TD)return;const r=svg.getBoundingClientRect(),sc=Math.max(VB[2]/r.width,VB[3]/r.height),ox=VB[0]+(VB[2]-r.width*sc)/2,oy=VB[1]+(VB[3]-r.height*sc)/2,x=ox+(e.clientX-r.left)*sc,y=oy+(e.clientY-r.top)*sc;
-let bi=lap.a,bd=1e18;for(let i=lap.a;i<lap.b;i++){const p=P[i];if(!p)continue;const dd=(p[0]-x)**2+(p[1]-y)**2;if(dd<bd){bd=dd;bi=i}}setCur(bi)});
-$('#gs-lap').onchange=e=>{lap=L[+e.target.value];draw()};$('#gs-ch').onchange=e=>{chJ=+e.target.value;drawChart();setCur(Math.max(lap.a,Math.min(cur,lap.b-1)))};
+let bi=lap.a,bd=1e18;for(let i=lap.a;i<lap.b;i++){const p=P[i];if(!p)continue;const dd=(p[0]-x)**2+(p[1]-y)**2;if(dd<bd){bd=dd;bi=i}}if(lap2&&CA){let bs=0,bk=1e18;CA.idx.forEach((ix,k)=>{const dd=Math.abs(ix-bi);if(dd<bk){bk=dd;bs=k}});setCmp(bs)}else setCur(bi)});
+$('#gs-lap').onchange=e=>{lap=L[+e.target.value];if(lap2===lap)lap2=null;fillLap2();draw()};$('#gs-lap2').onchange=e=>{lap2=e.target.value===''?null:L[+e.target.value];draw()};$('#gs-ch').onchange=e=>{chJ=+e.target.value;if(lap2){drawCmp();setCmp(CS)}else{drawChart();setCur(Math.max(lap.a,Math.min(cur,lap.b-1)))}};
 $('#gs-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;msg('Leyendo '+f.name+'…');try{load(await f.text(),f.name)}catch(err){msg('No pude leer el archivo: '+err.message)}e.target.value=''};
 if(CLOUD&&AUTH){(async()=>{try{const rows=(await api(COLS)).map(norm).filter(x=>x.archivo&&/\.csv$/i.test(x.archivo)).sort(desc);if(!rows.length)return;const sel=$('#gs-ses');
 sel.innerHTML='<option value="">Elegí una sesión…</option>'+rows.map(x=>`<option value="${esc(x.id)}">${esc(x.piloto)} · ${fdate(x.fecha)}${x.tanda?' · '+tLow(x.tanda):''}${x.pista?' · '+esc(x.pista):''}</option>`).join('');sel.hidden=false;
