@@ -182,6 +182,8 @@ body[data-page="h"] #view{max-width:980px;margin-inline:auto}
 .filebtn:focus-within{outline:2px solid var(--acc);outline-offset:2px}
 #gs-ses{max-width:280px}
 .gsel{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+@media(min-width:760px){.gsel{grid-template-columns:repeat(3,1fr)}}
+.gsel label:nth-child(3){grid-column:auto}
 .gsel label{color:var(--mut);font-size:13px}
 .gsel select{margin-top:4px}
 .gwrap{display:grid;gap:12px}
