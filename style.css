@@ -257,7 +257,7 @@ ol.tips .tipc::before{content:counter(tip);position:absolute;top:-6px;left:-6px;
 .tipt{font-size:15.5px;line-height:1.5}
 @media(max-width:420px){.tipc{grid-template-columns:1fr}.pic{max-width:220px}}
 /* Vuelta teórica */
-:root{--teo:#FFB020}
+:root{--teo:#00C853}
 .db td.teo,.st.teo .big{color:var(--teo);font-weight:700}
 .teoc .head select{width:auto;max-width:100%;margin-bottom:8px}
 .gn{color:#F2C14E;font-size:12px}
