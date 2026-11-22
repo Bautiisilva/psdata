@@ -188,6 +188,7 @@
     '📂 Abrir otro CSV…': '📂 Open another CSV…', 'Esta tanda': 'This run', 'Sesiones guardadas': 'Saved sessions',
     'Ese CSV no tiene vueltas completas para comparar.': 'That CSV has no complete laps to compare.',
     'Ojo: las dos vueltas tienen distinto largo. ¿Son de la misma pista?': 'Careful: the two laps have different lengths. Are they from the same track?',
+    'Ordenar o agrupar': 'Sort or group', 'Orden de carga': 'Order added', 'Por fecha y hora': 'By date and time', 'Por piloto': 'By driver',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -236,6 +237,7 @@
     [/^Tanda (\d+)$/, 'Run $1'],
     [/ · Tanda (\d+) · /g, ' · Run $1 · '],
     [/ · Tanda (\d+)$/, ' · Run $1'], [/ · tanda (\d+)/g, ' · run $1'], [/ · sin tanda · /g, ' · no run · '], [/ · sin pista$/, ' · no track'],
+    [/^· (\d+) sesi(ón|ones)$/, function (m, n) { return '· ' + n + ' ' + pl(n, 'session', 'sessions'); }],
     [/^· (\d+) pilotos?$/, function (m, n) { return '· ' + n + ' ' + pl(n, 'driver', 'drivers'); }],
     [/^· (\d+) tandas?$/, function (m, n) { return '· ' + n + ' ' + pl(n, 'run', 'runs'); }],
     [/^(\d+) tandas?$/, function (m, n) { return n + ' ' + pl(n, 'run', 'runs'); }],

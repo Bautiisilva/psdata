@@ -276,3 +276,7 @@ form.col .gc{width:100%;margin-top:8px;padding:10px}
 .edt{background:none;border:0;color:var(--mut);cursor:pointer;font-size:15px;padding:4px 8px;border-radius:6px}
 .edt:hover,.edt:focus-visible{color:var(--acc);background:var(--bg)}
 .db tr.editing td{background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.db tr.grp td{text-align:left!important;font:700 16px "Barlow Condensed",sans-serif;color:var(--acc);background:var(--bg);padding:8px 10px;border-top:2px solid var(--line)}
+.db tr.grp td .mut{font:400 13px Barlow,sans-serif}
+.tools{flex-wrap:wrap}
+.tools select{max-width:200px}
