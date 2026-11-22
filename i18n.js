@@ -180,6 +180,8 @@
     'Velocidad GPS (km/h)': 'GPS speed (km/h)', 'Altitud (m)': 'Altitude (m)', 'Satélites GPS': 'GPS satellites', 'Distancia (m)': 'Distance (m)',
     'Elegí el piloto': 'Pick the driver', '➕ Nuevo piloto…': '➕ New driver…', 'Nombre del piloto nuevo': 'New driver’s name',
     'Escribí el nombre del piloto nuevo.': 'Type the new driver’s name.', 'Elegí el piloto.': 'Pick the driver.',
+    'Editar sesión': 'Edit session', 'Guardar cambios': 'Save changes', 'Cancelar': 'Cancel', 'Guardando…': 'Saving…', 'Editar': 'Edit',
+    'El archivo de esta sesión se mantiene: no hace falta volver a subirlo.': 'This session’s file is kept: no need to upload it again.',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -236,6 +238,10 @@
     [/^Actualizado a las (\d+:\d+)\. Se actualiza solo\.$/, 'Updated at $1. Updates automatically.'],
     [/^Sin conexión: mostrando lo último guardado\.$/, 'Offline: showing the last saved data.'],
     [/^Borrar sesión de (.+) del (.+)$/, 'Delete $1’s session from $2'],
+    [/^Editar la sesión de (.+) del (.+)$/, 'Edit $1’s session from $2'],
+    [/^Cambios guardados en la sesión de (.+)\.$/, 'Changes saved to $1’s session.'],
+    [/^No se pudo guardar: (.*)$/, 'Could not save: $1'],
+    [/ · sin tanda$/, ' · no run'],
     [/^Borrar la cuenta de (.+)$/, 'Delete $1’s account'],
     [/^Cuenta creada\. Pasale a (.+): usuario (.+) · contraseña (.+)$/, 'Account created. Give $1: username $2 · password $3'],
     [/^Cuenta de (.+) borrada\.$/, '$1’s account deleted.'],

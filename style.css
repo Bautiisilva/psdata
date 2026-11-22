@@ -267,3 +267,10 @@ ol.tips .tipc::before{content:counter(tip);position:absolute;top:-6px;left:-6px;
 .tipc{grid-template-columns:170px 1fr}
 @media(max-width:420px){.tipc{grid-template-columns:1fr}.pic{max-width:260px}}
 #pnew{margin-top:6px}
+/* Editar sesión */
+.editbar{background:color-mix(in srgb,var(--acc) 14%,transparent);border:1px solid var(--acc);color:var(--acc);border-radius:8px;padding:6px 10px;font-size:14px;margin:-4px 0 10px}
+form.col .gc{width:100%;margin-top:8px;padding:10px}
+.acts{white-space:nowrap}
+.edt{background:none;border:0;color:var(--mut);cursor:pointer;font-size:15px;padding:4px 8px;border-radius:6px}
+.edt:hover,.edt:focus-visible{color:var(--acc);background:var(--bg)}
+.db tr.editing td{background:color-mix(in srgb,var(--acc) 12%,transparent)}
