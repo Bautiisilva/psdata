@@ -192,6 +192,16 @@
     'Ver curva de cerca': 'See corner up close', 'Elegí la curva': 'Pick the corner', 'ahora': 'now', 'acá': 'here', 'afuera': 'outside', 'adentro': 'inside',
     '¡Esta curva te sale muy bien! ✅ Seguí haciéndola igual.': 'You take this corner really well! ✅ Keep doing it the same way.',
     'La rayita marca dónde empieza a frenar cada vuelta; el punto violeta, la velocidad más baja de la mejor vuelta.': 'The short line marks where each lap starts braking; the purple dot, the lowest speed of the best lap.',
+    '✦ Preguntale a la IA': '✦ Ask the AI',
+    'Tocá el gráfico o el mapa para marcar un punto (línea violeta) y preguntá qué pasó ahí.': 'Tap the chart or the map to mark a point (purple line) and ask what happened there.',
+    'Preguntar': 'Ask', 'Pregunta para la IA': 'Question for the AI',
+    'Pensando… puede tardar unos segundos.': 'Thinking… this can take a few seconds.',
+    'Iniciá sesión en Drivers para usar la IA.': 'Log in on Drivers to use the AI.',
+    'Iniciá sesión para usar la IA.': 'Log in to use the AI.',
+    'La IA todavía no está activada: falta crear la función coach-ia en Supabase (ver LEEME).': 'The AI is not active yet: the coach-ia function still needs to be created in Supabase (see LEEME).',
+    'Muchas preguntas seguidas. Esperá un minuto y probá de nuevo.': 'Too many questions in a row. Wait a minute and try again.',
+    'La IA no pudo responder esa pregunta. Probá reformularla.': 'The AI could not answer that question. Try rephrasing it.',
+    'No se pudo contactar a la IA. Probá de nuevo.': 'Could not reach the AI. Try again.',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -293,6 +303,8 @@
     [/^Curva (\d+) \((\d+) m\): frenada a (\d+) m del vértice, entrada (\d+), mínima (\d+), salida (\d+) km\/h/, 'Corner $1 ($2 m): braking $3 m before apex, entry $4, minimum $5, exit $6 km/h'],
     [/ · resto de las vueltas /, ' · other laps '],
     [/^OBSERVACIONES · /, 'NOTES · '],
+    [/^Punto marcado: (\d+) m · sector (\d+)$/, 'Marked point: $1 m · sector $2'],
+    [/^¿Qué hizo mal (.+) acá\?$/, 'What did $1 do wrong here?'],
     [/^Curva (\d+) \((\d+) m\)$/, 'Corner $1 ($2 m)'],
     [/^· a (\d+) m de la largada$/, '· $1 m from the start'],
     [/^Tu mejor vuelta \(vuelta (\d+)\)$/, 'Your best lap (lap $1)'],

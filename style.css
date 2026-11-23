@@ -293,3 +293,16 @@ form.col .gc{width:100%;margin-top:8px;padding:10px}
 .cvrow .lg{display:inline-block;width:16px;height:6px;border-radius:3px;margin-top:7px;flex:none}
 .cpick{cursor:pointer}
 @media(min-width:900px){.cvgrid{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);align-items:start}}
+.iabox{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.iat{font:700 18px "Barlow Condensed",sans-serif;color:var(--acc);letter-spacing:.02em}
+.iabox .sm{margin:2px 0 8px}
+.iapt{font:500 14px Barlow,sans-serif;color:var(--mv);margin-bottom:6px;min-height:18px}
+.iarow{display:flex;gap:8px}
+.iarow input{flex:1;min-width:0;font:500 16px Barlow,sans-serif;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px;color-scheme:dark}
+.iarow input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.iarow .cta{border:0;cursor:pointer;flex:none}
+.iaa{margin-top:10px}
+.iaa:empty{display:none}
+.iaq{font:500 14px Barlow,sans-serif;margin-bottom:6px}
+.iar{background:var(--bg);border-left:3px solid var(--acc);border-radius:8px;padding:10px 12px;line-height:1.5}
+.iar p{margin:0 0 6px}.iar p:last-child{margin:0}.iar ul{margin:4px 0 6px;padding-left:20px}

@@ -19,3 +19,15 @@ CUENTAS (Drivers)
 Nota: al cambiar app.js, style.css o config.js, actualizá el número ?v= en los .html para que los celulares bajen la versión nueva.
 11. Para el ranking, corré ranking.sql en el SQL Editor.
 12. Para el número de tanda, corré tanda.sql en el SQL Editor.
+
+IA EN ANÁLISIS ("Preguntale a la IA", con Claude)
+La clave de Anthropic NUNCA va en config.js ni en el sitio: queda guardada como secreto en Supabase.
+A. Clave: entrá a https://console.anthropic.com → Settings → Billing y cargá crédito (unos pocos dólares alcanzan
+   para muchísimas preguntas). Después API Keys → Create Key y copiala (no se la pases a nadie).
+B. Secreto: en Supabase → Edge Functions → Secrets → Add new secret
+   Name: ANTHROPIC_API_KEY   Value: (pegá la clave)   → Save.
+C. Función: Edge Functions → Deploy a new function → Via Editor. Nombre: coach-ia
+   Borrá el ejemplo, pegá todo el contenido de supabase/functions/coach-ia/index.ts → Deploy function.
+D. En la función coach-ia → Details (o Settings): apagá "Verify JWT with legacy secret" / "Enforce JWT verification"
+   y guardá. La función igual revisa que haya alguien con sesión iniciada en psData.
+E. Listo: en Análisis → Comparación de pilotos, tocá un punto del gráfico y preguntá.

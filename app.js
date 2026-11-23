@@ -401,7 +401,7 @@ if(!S.length){v.innerHTML='<div class="card"><p>Cuando cargues sesiones con su C
 sel.A=S[0].id;sel.B=(S.find(x=>x.piloto!==S[0].piloto&&x.pista===S[0].pista)||S.find(x=>x.piloto!==S[0].piloto)||S.find(x=>x.id!==S[0].id)||S[0]).id;
 const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?tLbl(x.tanda):'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
 v.innerHTML=`<div class="two cmpsel">${['A','B'].map(k=>`<div class="card side"><div class="sidet"><i class="chip" style="background:${k==='A'?AC:BC}"></i>Piloto ${k}</div><label>Piloto<select id="cp-${k}"></select></label><label>Sesión <span class="opt">(fecha · tanda · vuelta · pista)</span><select id="cs-${k}"></select></label></div>`).join('')}</div>
-<div class="card chartc"><div class="mut" id="cm-msg"></div><div id="cm-chart"></div><div class="read" id="cm-read"></div></div>
+<div class="card chartc"><div class="mut" id="cm-msg"></div><div id="cm-chart"></div><div class="read" id="cm-read"></div><div class="iabox"><div class="iat">✦ Preguntale a la IA</div><p class="mut sm">Tocá el gráfico o el mapa para marcar un punto (línea violeta) y preguntá qué pasó ahí.</p><div class="iapt" id="ia-pt"></div><form class="iarow" id="ia-f"><input id="ia-q" type="text" maxlength="600" autocomplete="off" aria-label="Pregunta para la IA"><button class="cta" type="submit" id="ia-go">Preguntar</button></form><div id="ia-a" class="iaa" aria-live="polite"></div></div></div>
 <div class="card mapc"><div class="mut">Mapa por sectores: cada sector va del color del piloto que fue más rápido ahí</div><div id="cm-map"></div></div>
 <div class="card"><div id="cm-sec"></div></div>`;
 const pil=()=>[...new Set(S.map(x=>x.piloto))].sort((a,b)=>a.localeCompare(b));
@@ -410,13 +410,21 @@ $('#cp-'+k).innerHTML=pil().map(p=>`<option${p===cur.piloto?' selected':''}>${es
 $('#cs-'+k).innerHTML=S.filter(x=>x.piloto===cur.piloto).map(x=>`<option value="${esc(x.id)}"${x.id===cur.id?' selected':''}>${esc(lbl(x))}</option>`).join('')}
 ['A','B'].forEach(k=>{$('#cp-'+k).onchange=e=>{sel[k]=S.find(x=>x.piloto===e.target.value).id;fill(k);run()};$('#cs-'+k).onchange=e=>{sel[k]=e.target.value;run()}});
 const tel=id=>telFetch(S.find(s=>s.id===id));
-let A,B,TA,TB,O,run_id=0;
-async function run(){const my=++run_id,xa=S.find(x=>x.id===sel.A),xb=S.find(x=>x.id===sel.B);$('#cm-msg').textContent='Bajando los CSV…';
+let A,B,TA,TB,O,run_id=0,ctxIA=null,curI=0;
+const fmtIA=t=>{let h='',ul=false;esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').split('\n').forEach(l=>{const m=l.match(/^\s*[-•*]\s+(.*)/);if(m){if(!ul){h+='<ul>';ul=true}h+='<li>'+m[1]+'</li>'}else{if(ul){h+='</ul>';ul=false}if(l.trim())h+='<p>'+l+'</p>'}});return h+(ul?'</ul>':'')};
+$('#ia-f').onsubmit=async e=>{e.preventDefault();if(!ctxIA)return;const qi=$('#ia-q'),q=qi.value.trim()||qi.placeholder,ctx=ctxIA(curI),out=$('#ia-a'),btn=$('#ia-go');
+if(!AUTH){out.innerHTML='<p class="mut">Iniciá sesión en Drivers para usar la IA.</p>';return}
+btn.disabled=true;out.innerHTML='<p class="mut">Pensando… puede tardar unos segundos.</p>';
+try{const r=await req('/functions/v1/coach-ia',{method:'POST',headers:J,body:JSON.stringify({pregunta:q,contexto:ctx,idioma:window.LANG==='en'?'en':'es'})});
+out.innerHTML=`<div class="iaq">${esc(q)} <span class="mut">· ${ctx.punto_marcado.m} m · sector ${ctx.punto_marcado.sector}</span></div><div class="iar">${fmtIA(r&&r.respuesta||'')}</div>`}
+catch(err){out.innerHTML=`<p class="warnt">${esc(err.status===404?'La IA todavía no está activada: falta crear la función coach-ia en Supabase (ver LEEME).':err.message)}</p>`}
+finally{btn.disabled=false}};
+async function run(){const my=++run_id,xa=S.find(x=>x.id===sel.A),xb=S.find(x=>x.id===sel.B);$('#cm-msg').textContent='Bajando los CSV…';$('#ia-a').innerHTML='';
 try{const[ta,tb]=await Promise.all([tel(sel.A),tel(sel.B)]);if(my!==run_id)return;const la=telBest(telLaps(ta)),lb=telBest(telLaps(tb));
 A=lapTrace(ta,la);B=lapTrace(tb,lb);O=telOrigin(ta);TA={x:xa,lap:la};TB={x:xb,lap:lb};const same=xa.piloto===xb.piloto,tag=x=>same?`${x.piloto} ${x.tanda?(TESP[+x.tanda]||'T'+x.tanda):'T?'}${xa.id===xb.id?(x===xa?' (A)':' (B)'):''}`:x.piloto;TA.x={...xa,piloto:tag(xa)};TB.x={...xb,piloto:tag(xb)};
 const nm=(t,k)=>`${esc(t.x.piloto)}${t.lap.n?` (vuelta ${t.lap.n}`:' ('}${t.lap.n?', ':''}${fmtLap(t.lap.t)})`;
 $('#cm-msg').innerHTML=`Mejor vuelta de cada sesión: <b style="color:${AC}">${nm(TA)}</b> contra <b style="color:${BC}">${nm(TB)}</b>.${xa.pista&&xb.pista&&xa.pista!==xb.pista?' <span class="warnt">Ojo: son pistas distintas.</span>':''}`;
-draw()}catch(e){if(my!==run_id)return;$('#cm-msg').textContent='No se pudo comparar: '+e.message;['#cm-chart','#cm-map','#cm-sec','#cm-read'].forEach(s=>$(s).innerHTML='')}}
+draw()}catch(e){if(my!==run_id)return;$('#cm-msg').textContent='No se pudo comparar: '+e.message;ctxIA=null;['#cm-chart','#cm-map','#cm-sec','#cm-read','#ia-a','#ia-pt'].forEach(s=>$(s).innerHTML='')}}
 function draw(){const N=A.t.length-1,dl=A.t.map((t,i)=>B.t[i]-t),m=Math.max(.1,Math.max(...dl.map(Math.abs))*1.2),vs=[...A.v,...B.v].filter(x=>!isNaN(x)),v0=Math.floor(Math.min(...vs)/10)*10,v1=Math.ceil(Math.max(...vs)/10)*10||10;
 const X=i=>44+i/N*680,Y=s=>10+(v1-s)/((v1-v0)||1)*170,Z=d=>250-d/m*36;
 const line=(o,c)=>`<polyline fill="none" stroke="${c}" stroke-width="2.2" points="${o.v.map((s,i)=>X(i).toFixed(1)+','+Y(s).toFixed(1)).join(' ')}"/>`;
@@ -439,9 +447,19 @@ const tot=[A.time,B.time];
 $('#cm-sec').innerHTML=`<table class="db sect"><thead><tr><th>Sector</th><th style="color:${AC}">${esc(TA.x.piloto)}</th><th style="color:${BC}">${esc(TB.x.piloto)}</th><th>Dif.</th></tr></thead><tbody>${sec.map(q=>{const w=q.a<=q.b;return`<tr><td>${q.k+1}</td><td class="${w?'win':''}" style="${w?'color:'+AC:''}">${q.a.toFixed(3)}</td><td class="${w?'':'win'}" style="${w?'':'color:'+BC}">${q.b.toFixed(3)}</td><td class="mut">${(q.b-q.a>=0?'+':'−')+Math.abs(q.b-q.a).toFixed(3)}</td></tr>`}).join('')}
 <tr class="tot"><td>Vuelta</td><td>${fmtLap(tot[0])}</td><td>${fmtLap(tot[1])}</td><td class="mut">${(tot[1]-tot[0]>=0?'+':'−')+Math.abs(tot[1]-tot[0]).toFixed(3)}</td></tr></tbody></table><p class="mut sm">Dif.: positivo = ${esc(TA.x.piloto)} más rápido en ese sector.</p>`;
 const sc=i=>{const x=X(i);$('#cm-cur').setAttribute('x1',x);$('#cm-cur').setAttribute('x2',x);[['#cm-da',PA[i]],['#cm-db',PB[i]]].forEach(([id,p])=>{const e=$(id);if(e&&p){e.setAttribute('cx',p[0]);e.setAttribute('cy',p[1])}});
+curI=i;const ms=Math.round(i/N*A.len);$('#ia-pt').textContent=`Punto marcado: ${ms} m · sector ${Math.min(NS,Math.floor(i/N*NS)+1)}`;$('#ia-q').placeholder=`¿Qué hizo mal ${dl[i]>=0?TB.x.piloto:TA.x.piloto} acá?`;
 const d=dl[i];$('#cm-read').textContent=`${Math.round(i/N*A.len)} m · ${TA.x.piloto} ${Math.round(A.v[i])} km/h · ${TB.x.piloto} ${Math.round(B.v[i])} km/h · ${d>=0?TB.x.piloto:TA.x.piloto} ${d>=0?'+':'+'}${Math.abs(d).toFixed(3)} s`};
 const svg=$('#cm-svg'),mv=e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*740;sc(Math.max(0,Math.min(N,Math.round((x-44)/680*N))))};svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',mv);
 const map=$('#cm-map svg');map.addEventListener('pointerdown',e=>{const r=map.getBoundingClientRect(),vb=map.viewBox.baseVal,k=Math.max(vb.width/r.width,vb.height/r.height),ox=vb.x+(vb.width-r.width*k)/2,oy=vb.y+(vb.height-r.height*k)/2,x=ox+(e.clientX-r.left)*k,y=oy+(e.clientY-r.top)*k;let bi=0,bd=1e18;PA.forEach((p,i)=>{const dd=(p[0]-x)**2+(p[1]-y)**2;if(dd<bd){bd=dd;bi=i}});sc(bi)});
+ctxIA=i=>{const st=A.len/N,w=Math.max(10,Math.round(90/st)),f=Math.max(0,i-w),t=Math.min(N,i+w),k=Math.max(1,Math.round((t-f)/30)),r1=x=>Math.round(x*10)/10,r3=x=>Math.round(x*1000)/1000;
+const hd=j=>{const p=PA[Math.max(0,j-1)],q=PA[Math.min(N,j+1)];return Math.atan2(q[1]-p[1],q[0]-p[0])};
+const muestras=[];for(let j=f;j<=t;j+=k){const j2=Math.min(t,j+k);let g=(hd(j2)-hd(j))*180/Math.PI;g=((g+540)%360)-180;muestras.push({m:Math.round(j*st),vA:r1(A.v[j]),vB:r1(B.v[j]),dt:r3(dl[j]),giro:Math.round(g)})}
+const res=o=>{let mi=f;for(let j=f;j<=t;j++)if(o.v[j]<o.v[mi])mi=j;let mx=f;for(let j=f;j<=mi;j++)if(o.v[j]>o.v[mx])mx=j;return{vel_min:r1(o.v[mi]),m_vel_min:Math.round(mi*st),vel_max_antes:r1(o.v[mx]),m_empieza_a_frenar:mx<mi?Math.round(mx*st):null,vel_al_salir_de_la_ventana:r1(o.v[t])}};
+const pil=T=>({nombre:T.x.piloto,tipo_kart:T.x.tipo||null,motor:T.x.motor||null,neumaticos:T.x.neumaticos||null,condicion_pista:T.x.condicion||null,vuelta:T.lap.n||null,tiempo_vuelta:fmtLap(T.lap.t)});
+return{pista:TA.x.pista||TB.x.pista||null,largo_vuelta_m:Math.round(A.len),piloto_A:pil(TA),piloto_B:pil(TB),
+punto_marcado:{m:Math.round(i*st),sector:Math.min(NS,Math.floor(i/N*NS)+1),vA:r1(A.v[i]),vB:r1(B.v[i]),dt:r3(dl[i])},
+ventana:{desde_m:Math.round(f*st),hasta_m:Math.round(t*st),segundos_que_gana_A_en_la_ventana:r3(dl[t]-dl[f])},resumen_A:res(A),resumen_B:res(B),
+sectores:sec.map(q=>({sector:q.k+1,A:r3(q.a),B:r3(q.b)})),muestras}};
 sc(Math.round(N*.1))}
 fill('A');fill('B');run();
 const refresh=async()=>{if(document.hidden)return;const ids=S.map(x=>x.id).join();try{await loadList()}catch(e){return}if(S.map(x=>x.id).join()===ids)return;if(document.activeElement&&/^c[ps]-/.test(document.activeElement.id||''))return;fill('A');fill('B')};
