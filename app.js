@@ -432,16 +432,16 @@ $('#cm-chart').innerHTML=`<svg id="cm-svg" class="chart" viewBox="0 0 740 300" r
 // mapa por sectores
 const PA=A.la.map((la,i)=>telXY(la,A.lo[i],O)),PB=B.la.map((la,i)=>telXY(la,B.lo[i],O)),xs=PA.map(p=>p[0]),ys=PA.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.08,s=Math.max(x1-x0,y1-y0)/100;
 const sec=[];for(let k=0;k<NS;k++){const i0=Math.round(k/NS*N),i1=Math.round((k+1)/NS*N);sec.push({k,i0,i1,a:A.t[i1]-A.t[i0],b:B.t[i1]-B.t[i0]})}
-const st=A.len/N,CR=findCorners(A).map((ia,ci)=>{const mb=cornerM(A,ia);return{n:ci+1,ia:mb.im,i0:Math.max(0,mb.ib-Math.round(20/st)),i1:Math.min(N,mb.im+Math.round(60/st))}});
+const st=A.len/N,OFc=curvasOficiales(A),WMc=OFc?8:25,CR=(OFc||findCorners(A).map((ia,ci)=>({ia,n:ci+1}))).map(({ia,n})=>{const mb=cornerM(A,ia,WMc);return{n,ia:OFc?ia:mb.im,i0:Math.max(0,mb.ib-Math.round(20/st)),i1:Math.min(N,mb.im+Math.round(60/st))}});
 for(let k=1;k<CR.length;k++)if(CR[k].i0<CR[k-1].i1){const mid=Math.round((CR[k-1].ia+CR[k].ia)/2);CR[k-1].i1=Math.min(CR[k-1].i1,mid);CR[k].i0=Math.max(CR[k].i0,mid)}
 const nC=CR.length,ZN=[],recta=(i0,i1,a,b)=>{if(i1-i0>2)ZN.push({tipo:'recta',a,b,i0,i1})};
-if(nC){recta(0,CR[0].i0,nC,1);CR.forEach((c,k)=>{ZN.push({tipo:'curva',a:c.n,ia:c.ia,i0:c.i0,i1:c.i1});if(k<nC-1)recta(c.i1,CR[k+1].i0,c.n,c.n+1)});recta(CR[nC-1].i1,N,nC,1)}else ZN.push({tipo:'recta',i0:0,i1:N});
-{const f=ZN[0],l=ZN[ZN.length-1];if(ZN.length>2&&f.tipo==='recta'&&l.tipo==='recta'&&f.a===nC&&l.a===nC){f.par=l;l.par=f}}
+if(nC){recta(0,CR[0].i0,CR[nC-1].n,CR[0].n);CR.forEach((c,k)=>{ZN.push({tipo:'curva',a:c.n,ia:c.ia,i0:c.i0,i1:c.i1});if(k<nC-1)recta(c.i1,CR[k+1].i0,c.n,CR[k+1].n)});recta(CR[nC-1].i1,N,CR[nC-1].n,CR[0].n)}else ZN.push({tipo:'recta',i0:0,i1:N});
+{const f=ZN[0],l=ZN[ZN.length-1];if(ZN.length>2&&f.tipo==='recta'&&l.tipo==='recta'&&f.a===l.a&&f.b===l.b){f.par=l;l.par=f}}
 const hdg=j=>{const p=PA[Math.max(0,j-1)],q=PA[Math.min(N,j+1)];return Math.atan2(q[1]-p[1],q[0]-p[0])};
 ZN.forEach((z,zi)=>{z.zi=zi;z.g0=(B.t[z.i1]-B.t[z.i0])-(A.t[z.i1]-A.t[z.i0]);let h=0;for(let j=z.i0;j<z.i1;j+=2){let d=hdg(Math.min(z.i1,j+2))-hdg(j);d=((d+3*Math.PI)%(2*Math.PI))-Math.PI;h+=d}z.giro=h*180/Math.PI;
-if(z.tipo==='curva'){z.mA=cornerM(A,z.ia);z.mB=cornerM(B,z.ia)}else{const mx=o=>Math.max(...o.v.slice(z.i0,z.i1+1));z.vmaxA=mx(A);z.vmaxB=mx(B)}});
+if(z.tipo==='curva'){z.mA=cornerM(A,z.ia,WMc);z.mB=cornerM(B,z.ia,WMc)}else{const mx=o=>Math.max(...o.v.slice(z.i0,z.i1+1));z.vmaxA=mx(A);z.vmaxB=mx(B)}});
 ZN.forEach(z=>{z.g=z.g0+(z.par?z.par.g0:0);if(z.par){z.vmaxA=Math.max(z.vmaxA,z.par.vmaxA);z.vmaxB=Math.max(z.vmaxB,z.par.vmaxB)}});
-const zName=(z,en)=>z.tipo==='curva'?(en?`corner ${z.a}`:`la curva ${z.a}`):z.a==null?(en?'the lap':'la vuelta'):z.a===nC&&z.b===1?(en?`the main straight (between corner ${nC} and 1)`:`la recta principal (entre la curva ${nC} y la 1)`):(en?`the straight between corner ${z.a} and ${z.b}`:`la recta entre la curva ${z.a} y la ${z.b}`);
+const zName=(z,en)=>z.tipo==='curva'?(en?`corner ${z.a}`:`la curva ${z.a}`):z.a==null?(en?'the lap':'la vuelta'):!OFc&&z.a===nC&&z.b===1?(en?`the main straight (between corner ${nC} and 1)`:`la recta principal (entre la curva ${nC} y la 1)`):(en?`the straight between corner ${z.a} and ${z.b}`:`la recta entre la curva ${z.a} y la ${z.b}`);
 const zOf=i=>ZN.find(z=>z.tipo==='curva'&&i>=z.i0&&i<=z.i1)||ZN.find(z=>i>=z.i0&&i<=z.i1)||ZN[ZN.length-1];
 const zStep=(z,d)=>{if(ZN.length<2)return null;let k=z.zi;for(let t=0;t<ZN.length;t++){k=(k+d+ZN.length)%ZN.length;const x=ZN[k];if(x!==z&&x!==z.par)return x}return null};
 let path='';sec.forEach(q=>{const c=q.a<=q.b?AC:BC;path+=`<polyline fill="none" stroke="${c}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" points="${PA.slice(q.i0,q.i1+1).map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}"/>`;
@@ -461,7 +461,7 @@ const map=$('#cm-map svg');map.addEventListener('pointerdown',e=>{const r=map.ge
 ctxIA=(q,i,en)=>{const A_=TA.x.piloto,B_=TB.x.piloto,ql=q.toLowerCase(),m=Math.round,n=x=>{const v=Math.abs(x).toFixed(Math.abs(x)<1?3:2);return en?v:v.replace('.',',')},cap=t=>t.charAt(0).toUpperCase()+t.slice(1),ms=m(i*st);
 const zc=c=>ZN.find(z=>z.tipo==='curva'&&z.a===c);let sel=null,rango=null;
 const mm=nC&&ql.match(/(?:curva|corner|turn)s?\s*(\d+)(?:\s*(?:y|a|hasta|and|to|-)\s*(?:la\s+|the\s+)?(?:curva\s*|corner\s*|turn\s*)?(\d+))?/);
-if(mm){let c1=+mm[1],c2=mm[2]?+mm[2]:null;if(c2&&zc(c1)&&zc(c2)&&c1!==c2){if(c2<c1)[c1,c2]=[c2,c1];sel=ZN.filter(z=>z.zi>=zc(c1).zi&&z.zi<=zc(c2).zi);rango=[c1,c2]}else if(zc(c1))sel=[zc(c1)]}
+if(mm){let c1=+mm[1],c2=mm[2]?+mm[2]:null;if(c2&&zc(c1)&&zc(c2)&&c1!==c2){const Zl=ZN.length,j1=zc(c1).zi,j2=zc(c2).zi,fw=(j2-j1+Zl)%Zl,bk=(j1-j2+Zl)%Zl,st0=fw<=bk?j1:j2,ln=Math.min(fw,bk);sel=[];for(let t=0;t<=ln;t++){const z=ZN[(st0+t)%Zl];if(!sel.some(x=>x===z||x===z.par))sel.push(z)}rango=[ZN[st0].a,ZN[(st0+ln)%Zl].a]}else if(zc(c1))sel=[zc(c1)]}
 const foco=sel||[zOf(i)],z0=foco[0],G=rango?foco.reduce((s_,z)=>s_+z.g0,0):z0.g,winA=G>=0,W=winA?A_:B_,L=winA?B_:A_,gl=z=>(winA?1:-1)*(rango?z.g0:z.g);
 const pide=[A_,B_].find(x=>ql.includes(x.toLowerCase().split(' ')[0]));
 const dirT=z=>z.tipo!=='curva'||Math.abs(z.giro)<20?'':(en?` (${z.giro>0?'right':'left'}-hand)`:` (a la ${z.giro>0?'derecha':'izquierda'})`);
@@ -509,10 +509,19 @@ async function telFetch(x){if(TELC[x.id])return TELC[x.id];const j=await req('/s
 const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)throw new Error('HTTP '+r.status);const td=parseTelemetry(await r.text());if(td.error)throw new Error(td.error);return TELC[x.id]=td}
 /* Coach: análisis de ingeniero a partir de la telemetría */
 const smoothA=(a,w)=>a.map((_,i)=>{let s=0,n=0;for(let j=i-w;j<=i+w;j++)if(a[j]!=null&&!isNaN(a[j])){s+=a[j];n++}return n?s/n:a[i]});
+/* Curvas oficiales por pista, en sentido horario (en antihorario se recorren al revés y el número es 13-n). Se ubican por GPS. */
+const TRAZADOS=[{nombre:'Homestead-Miami Motorplex',c:[25.4543,-80.4146],cw:[[25.455083,-80.415452],[25.455070,-80.413794],[25.454384,-80.413874],[25.454436,-80.414546],[25.454576,-80.414717],[25.454506,-80.414880],[25.454243,-80.414971],[25.454048,-80.415200],[25.453905,-80.414072],[25.453733,-80.414916],[25.453528,-80.414934],[25.453471,-80.415458]]}];
+function curvasOficiales(tr){const N=tr.la.length-1,ok=tr.la.map((la,i)=>i).filter(i=>!isNaN(tr.la[i])&&!isNaN(tr.lo[i])&&tr.la[i]);if(ok.length<20)return null;
+const ml=ok.reduce((a,i)=>a+tr.la[i],0)/ok.length,mo=ok.reduce((a,i)=>a+tr.lo[i],0)/ok.length,k=Math.cos(ml*Math.PI/180),dm=(a,b,c,d)=>Math.hypot((b-d)*k*111320,(a-c)*110540);
+const P=TRAZADOS.find(p=>dm(ml,mo,p.c[0],p.c[1])<1500);if(!P)return null;
+const idx=[];for(const c of P.cw){let bi=-1,bd=1e9;for(const i of ok){const d=dm(tr.la[i],tr.lo[i],c[0],c[1]);if(d<bd){bd=d;bi=i}}if(bd>30)return null;idx.push(bi)}
+const K=idx.length;let up=0,dn=0;for(let j=0;j<K;j++){const a=idx[j],b=idx[(j+1)%K];if(b>a)up++;else if(b<a)dn++}
+const cw=dn<=1?true:up<=1?false:null;if(cw===null)return null;
+return idx.map((ia,j)=>({ia,n:cw?j+1:K-j})).sort((a,b)=>a.ia-b.ia)}
 function findCorners(tr){const N=tr.v.length-1,ds=tr.len/N,v=smoothA(tr.v,3),W=Math.max(2,Math.round(30/ds)),P=Math.round(120/ds),G=Math.round(40/ds),out=[];
 for(let i=1;i<N;i++){let m=true;for(let j=Math.max(0,i-W);j<=Math.min(N,i+W);j++)if(v[j]<v[i]){m=false;break}if(!m)continue;
 const b=Math.max(...v.slice(Math.max(0,i-P),i+1)),a=Math.max(...v.slice(i,Math.min(N,i+P)+1));if(b-v[i]>=5&&a-v[i]>=4){if(out.length&&i-out[out.length-1]<G){if(v[i]<v[out[out.length-1]])out[out.length-1]=i}else out.push(i)}}return out}
-function cornerM(tr,ia){const N=tr.v.length-1,ds=tr.len/N,v=smoothA(tr.v,2),w=Math.round(25/ds);let im=ia;for(let j=Math.max(0,ia-w);j<=Math.min(N,ia+w);j++)if(v[j]<v[im])im=j;
+function cornerM(tr,ia,wm=25){const N=tr.v.length-1,ds=tr.len/N,v=smoothA(tr.v,2),w=Math.round(wm/ds);let im=ia;for(let j=Math.max(0,ia-w);j<=Math.min(N,ia+w);j++)if(v[j]<v[im])im=j;
 const P=Math.round(150/ds),lo=Math.max(0,im-P);let ib=im;while(ib>lo&&v[ib-1]<=v[im]+1)ib--;while(ib>lo&&v[ib-1]>v[ib]+0.05)ib--;const ie=Math.min(N,im+Math.round(40/ds));return{im,ib,ie,vmin:v[im],vin:v[ib],vex:v[ie],freno:(im-ib)*ds}}
 function analizar(TD,ref){const L=telLaps(TD).filter(l=>l.n);if(!L.length)return{error:'No encontré vueltas completas en el CSV (faltan las marcas de vuelta).'};
 const best=telBest(L),tr=L.map(l=>({lap:l,tr:lapTrace(TD,l)})),B=tr.find(x=>x.lap===best).tr,N=B.v.length-1,ds=B.len/N;
@@ -520,11 +529,11 @@ const lim=best.t*1.07,val=tr.filter(x=>x.lap.t<=lim),out_=tr.filter(x=>x.lap.t>l
 const NS=10,sec=[];for(let k=0;k<NS;k++){const i0=Math.round(k/NS*N),i1=Math.round((k+1)/NS*N),ts=val.map(x=>({n:x.lap.n,t:x.tr.t[i1]-x.tr.t[i0]}));const m=ts.reduce((p,q)=>q.t<p.t?q:p,ts[0]);sec.push({k,best:m.t,de:m.n,mine:B.t[i1]-B.t[i0]})}
 const ideal=sec.reduce((s,q)=>s+q.best,0);
 const tv=val.map(x=>x.lap.t),mean=tv.reduce((a,b)=>a+b,0)/tv.length,sd=Math.sqrt(tv.reduce((a,b)=>a+(b-mean)**2,0)/tv.length);
-const C=findCorners(B).map((ia,ci)=>{const mb=cornerM(B,ia),i1=Math.max(0,mb.ib-Math.round(20/ds)),i2=Math.min(N,mb.im+Math.round(60/ds)),tB=B.t[i2]-B.t[i1];
-const otros=val.filter(x=>x.lap!==best).map(x=>{const m=cornerM(x.tr,ia);return{...m,loss:(x.tr.t[i2]-x.tr.t[i1])-tB,n:x.lap.n}});
-let vsRef=null;if(ref){const m=cornerM(ref.tr,Math.round(ia/N*(ref.tr.v.length-1))),Nr=ref.tr.v.length-1,j1=Math.round(i1/N*Nr),j2=Math.round(i2/N*Nr);vsRef={...m,loss:tB-(ref.tr.t[j2]-ref.tr.t[j1])}}
+const OF=curvasOficiales(B),WM=OF?8:25,C=(OF||findCorners(B).map((ia,ci)=>({ia,n:ci+1}))).map(({ia,n})=>{const mb=cornerM(B,ia,WM),i1=Math.max(0,mb.ib-Math.round(20/ds)),i2=Math.min(N,mb.im+Math.round(60/ds)),tB=B.t[i2]-B.t[i1];
+const otros=val.filter(x=>x.lap!==best).map(x=>{const m=cornerM(x.tr,ia,WM);return{...m,loss:(x.tr.t[i2]-x.tr.t[i1])-tB,n:x.lap.n}});
+let vsRef=null;if(ref){const m=cornerM(ref.tr,Math.round(ia/N*(ref.tr.v.length-1)),WM),Nr=ref.tr.v.length-1,j1=Math.round(i1/N*Nr),j2=Math.round(i2/N*Nr);vsRef={...m,loss:tB-(ref.tr.t[j2]-ref.tr.t[j1])}}
 const avg=k=>otros.length?otros.reduce((s,o)=>s+o[k],0)/otros.length:null;
-return{n:ci+1,ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});
+return{n,ia:OF?ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});C.sort((a,b)=>a.n-b.n);
 const O=telOrigin(TD),Pp=B.la.map((la,i)=>telXY(la,B.lo[i],O)),lossC=c=>Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),mxL=Math.max(.1,...C.map(lossC)),cc=c=>{const l=lossC(c);return l<.04?'#2DD4BF':l<mxL*.5?'#F2C14E':'#E4384A'};
 return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref,P:Pp,ds,cc,O,trs:val}}
 /* Dibujitos para los consejos del Coach */
@@ -634,7 +643,7 @@ $('#co-laps').innerHTML=`<table class="db sect"><thead><tr><th>Vuelta</th><th>Ti
 // mapa
 const O=telOrigin(td),P=R.B.la.map((la,i)=>telXY(la,R.B.lo[i],O)),xs=P.map(p=>p[0]),ys=P.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.1,s=Math.max(x1-x0,y1-y0)/100;
 const cc=x=>x;
-const marks=R.C.map(c=>{const p=P[c.ia],seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${R.cc(c)}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${R.cc(c)}" data-c="${c.n}" class="cpick"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
+const marks=R.C.map(c=>{const seg=P.slice(c.i1,c.i2+1).map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');return`<polyline points="${seg}" fill="none" stroke="${R.cc(c)}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round"/>`}).join('')+R.C.map(c=>{const p=P[c.ia];return`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.6).toFixed(1)}" fill="${R.cc(c)}" data-c="${c.n}" class="cpick"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.2).toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="cnum">${c.n}</text>`}).join('');
 $('#co-map').innerHTML=`<svg class="gsvg cmmap" viewBox="${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}" role="img" aria-label="Mapa de curvas"><path d="M${P.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}" fill="none" stroke="var(--line)" stroke-width="${(s*2.6).toFixed(2)}" stroke-linejoin="round"/>${marks}</svg><div class="gleg mut"><span class="lg" style="background:#2DD4BF"></span>sin pérdida<span class="lg" style="background:#F2C14E"></span>pierde algo<span class="lg" style="background:#E4384A"></span>pierde más</div>`;
 const o=observaciones(R,x,refx);obsCache=obsTxt(o,x);
 const cs=$('#co-cs'),worst=R.C.slice().sort((p,q)=>Math.max(q.avgLoss,q.vsRef?q.vsRef.loss:0)-Math.max(p.avgLoss,p.vsRef?p.vsRef.loss:0))[0];
