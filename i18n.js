@@ -195,13 +195,6 @@
     '✦ Preguntale a la IA': '✦ Ask the AI',
     'Tocá el gráfico o el mapa para marcar un punto (línea violeta) y preguntá qué pasó ahí.': 'Tap the chart or the map to mark a point (purple line) and ask what happened there.',
     'Preguntar': 'Ask', 'Pregunta para la IA': 'Question for the AI',
-    'Pensando… puede tardar unos segundos.': 'Thinking… this can take a few seconds.',
-    'Iniciá sesión en Drivers para usar la IA.': 'Log in on Drivers to use the AI.',
-    'Iniciá sesión para usar la IA.': 'Log in to use the AI.',
-    'La IA todavía no está activada: falta crear la función coach-ia en Supabase (ver LEEME).': 'The AI is not active yet: the coach-ia function still needs to be created in Supabase (see LEEME).',
-    'Muchas preguntas seguidas. Esperá un minuto y probá de nuevo.': 'Too many questions in a row. Wait a minute and try again.',
-    'La IA no pudo responder esa pregunta. Probá reformularla.': 'The AI could not answer that question. Try rephrasing it.',
-    'No se pudo contactar a la IA. Probá de nuevo.': 'Could not reach the AI. Try again.',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
