@@ -510,22 +510,24 @@ const r=await fetch(BASE+'/storage/v1'+(j.signedURL||j.signedUrl));if(!r.ok)thro
 /* Coach: análisis de ingeniero a partir de la telemetría */
 const smoothA=(a,w)=>a.map((_,i)=>{let s=0,n=0;for(let j=i-w;j<=i+w;j++)if(a[j]!=null&&!isNaN(a[j])){s+=a[j];n++}return n?s/n:a[i]});
 /* Curvas oficiales por pista, en sentido horario (en antihorario se recorren al revés y el número es 13-n). Se ubican por GPS. */
-const TRAZADOS=[{nombre:'Homestead-Miami Motorplex',c:[25.4543,-80.4146],cw:[[25.455074,-80.415462],[25.455052,-80.413775],[25.454426,-80.413803],[25.454409,-80.414500],[25.454572,-80.414701],[25.454523,-80.414869],[25.454265,-80.414946],[25.454068,-80.415210],[25.453926,-80.414068],[25.453798,-80.414870],[25.453497,-80.414958],[25.453498,-80.415494]],frac:{4:.25,5:.75}}];
+const TRAZADOS=[{nombre:'Homestead-Miami Motorplex · National',c:[25.4543,-80.4146],cw:[[25.455042,-80.415484],[25.455049,-80.413786],[25.454412,-80.413805],[25.454432,-80.414545],[25.454848,-80.414538],[25.454764,-80.414855],[25.454255,-80.414937],[25.454071,-80.415208],[25.453906,-80.413726],[25.453785,-80.414869],[25.453467,-80.414966],[25.453485,-80.415498]]},
+{nombre:'Homestead-Miami Motorplex · corta',c:[25.4543,-80.4146],cw:[[25.455074,-80.415462],[25.455052,-80.413775],[25.454426,-80.413803],[25.454409,-80.414500],[25.454572,-80.414701],[25.454523,-80.414869],[25.454265,-80.414946],[25.454068,-80.415210],[25.453926,-80.414068],[25.453798,-80.414870],[25.453497,-80.414958],[25.453498,-80.415494]],frac:{4:.25,5:.75}}];
 /* Geometría de la vuelta: cuánto gira la pista en cada punto (rad por metro; + derecha) */
 function geoTr(tr){if(tr._g)return tr._g;const N=tr.la.length-1,ds=tr.len/N,ok=i=>!isNaN(tr.la[i])&&!isNaN(tr.lo[i]);let o=0;while(o<N&&!ok(o))o++;const O=[tr.la[o],tr.lo[o]];let prev=[0,0];
 const P=tr.la.map((la,i)=>ok(i)?(prev=telXY(la,tr.lo[i],O)):prev),w=Math.max(1,Math.round(3/ds)),h=P.map((_,i)=>{const a=P[Math.max(0,i-w)],b=P[Math.min(N,i+w)];return Math.atan2(b[1]-a[1],b[0]-a[0])});
 const r0=h.map((x,i)=>i<N?(((h[i+1]-x)+3*Math.PI)%(2*Math.PI)-Math.PI)/ds:0),r=r0.map((_,i)=>{let s_=0,c=0;for(let j=Math.max(0,i-3);j<=Math.min(N,i+3);j++){s_+=r0[j];c++}return s_/c});return tr._g={P,r,ds,N}}
 /* Medio geométrico de la curva que contiene ia (frac=0.5) y para qué lado dobla */
-function medioCurva(tr,ia,frac=.5){const{r,ds,N}=geoTr(tr),thr=0.6*Math.PI/180;let j0=ia;for(let j=Math.max(0,ia-Math.round(15/ds));j<=Math.min(N-1,ia+Math.round(15/ds));j++)if(Math.abs(r[j])>Math.abs(r[j0]))j0=j;
-const sg=Math.sign(r[j0])||1;if(Math.abs(r[j0])<thr)return{ia,sg};const M=Math.round(70/ds);let a=j0,b=j0;while(a>0&&j0-a<M&&r[a-1]*sg>thr*.5)a--;while(b<N-1&&b-j0<M&&r[b+1]*sg>thr*.5)b++;
+function medioCurva(tr,ia,frac=.5,lo=0,hi=1e9){const{r,ds,N}=geoTr(tr),thr=0.6*Math.PI/180;lo=Math.max(0,lo);hi=Math.min(N-1,hi);let j0=ia;for(let j=Math.max(lo,ia-Math.round(15/ds));j<=Math.min(hi,ia+Math.round(15/ds));j++)if(Math.abs(r[j])>Math.abs(r[j0]))j0=j;
+const sg=Math.sign(r[j0])||1;if(Math.abs(r[j0])<thr)return{ia,sg};const M=Math.round(70/ds);let a=j0,b=j0;while(a>lo&&j0-a<M&&r[a-1]*sg>thr*.5)a--;while(b<hi&&b-j0<M&&r[b+1]*sg>thr*.5)b++;
 let tot=0;for(let j=a;j<=b;j++)tot+=r[j];let c=0,bi=a;for(let j=a;j<=b;j++){c+=r[j];if(Math.abs(c)>=Math.abs(tot)*frac){bi=j;break}}return{ia:bi,sg}}
 function curvasOficiales(tr){const N=tr.la.length-1,ok=tr.la.map((la,i)=>i).filter(i=>!isNaN(tr.la[i])&&!isNaN(tr.lo[i])&&tr.la[i]);if(ok.length<20)return null;
 const ml=ok.reduce((a,i)=>a+tr.la[i],0)/ok.length,mo=ok.reduce((a,i)=>a+tr.lo[i],0)/ok.length,k=Math.cos(ml*Math.PI/180),dm=(a,b,c,d)=>Math.hypot((b-d)*k*111320,(a-c)*110540);
-const T=TRAZADOS.find(p=>dm(ml,mo,p.c[0],p.c[1])<1500);if(!T)return null;
-const idx=[];for(const c of T.cw){let bi=-1,bd=1e9;for(const i of ok){const d=dm(tr.la[i],tr.lo[i],c[0],c[1]);if(d<bd){bd=d;bi=i}}if(bd>30)return null;idx.push(bi)}
+let T=null,idx=null,best=1e9;for(const P of TRAZADOS){if(dm(ml,mo,P.c[0],P.c[1])>1500)continue;const ix=[];let sum=0,mal=false;for(const c of P.cw){let bi=-1,bd=1e9;for(const i of ok){const d=dm(tr.la[i],tr.lo[i],c[0],c[1]);if(d<bd){bd=d;bi=i}}if(bd>30){mal=true;break}sum+=bd;ix.push(bi)}if(!mal&&sum<best){best=sum;T=P;idx=ix}}
+if(!T)return null;
 const K=idx.length;let up=0,dn=0;for(let j=0;j<K;j++){const a=idx[j],b=idx[(j+1)%K];if(b>a)up++;else if(b<a)dn++}
 const cw=dn<=1?true:up<=1?false:null;if(cw===null)return null;
-return idx.map((ia,j)=>{const f=T.frac&&T.frac[j]!=null?(cw?T.frac[j]:1-T.frac[j]):.5,m=medioCurva(tr,ia,f);return{ia:m.ia,sg:m.sg,n:cw?j+1:K-j}}).sort((a,b)=>a.ia-b.ia)}
+const so=idx.slice().sort((a,b)=>a-b),bnd=ia=>{const q=so.indexOf(ia);return[q>0?Math.ceil((so[q-1]+ia)/2):0,q<so.length-1?Math.floor((ia+so[q+1])/2):N]};
+return idx.map((ia,j)=>{const f=T.frac&&T.frac[j]!=null?(cw?T.frac[j]:1-T.frac[j]):.5,[lo,hi]=T.frac&&T.frac[j]!=null?[0,N]:bnd(ia),m=medioCurva(tr,ia,f,lo,hi);return{ia:m.ia,sg:m.sg,n:cw?j+1:K-j}}).sort((a,b)=>a.ia-b.ia)}
 /* Número de curva del lado de afuera, con una rayita hasta el medio de la curva */
 function badgeOut(P,ia,sg,R){const N=P.length-1,a=P[Math.max(0,ia-3)],b=P[Math.min(N,ia+3)],hx=b[0]-a[0],hy=b[1]-a[1],l=Math.hypot(hx,hy)||1,ox=(sg>0?hy:-hy)/l,oy=(sg>0?-hx:hx)/l,p=P[ia];return{x:p[0]+ox*R,y:p[1]+oy*R,ax:p[0],ay:p[1]}}
 function findCorners(tr){const N=tr.v.length-1,ds=tr.len/N,v=smoothA(tr.v,3),W=Math.max(2,Math.round(30/ds)),P=Math.round(120/ds),G=Math.round(40/ds),out=[];
@@ -543,7 +545,7 @@ const OF=curvasOficiales(B),WM=OF?8:25,C=(OF||findCorners(B).map((ia,ci)=>({ia,n
 const otros=val.filter(x=>x.lap!==best).map(x=>{const m=cornerM(x.tr,ia,WM);return{...m,loss:(x.tr.t[i2]-x.tr.t[i1])-tB,n:x.lap.n}});
 let vsRef=null;if(ref){const m=cornerM(ref.tr,Math.round(ia/N*(ref.tr.v.length-1)),WM),Nr=ref.tr.v.length-1,j1=Math.round(i1/N*Nr),j2=Math.round(i2/N*Nr);vsRef={...m,loss:tB-(ref.tr.t[j2]-ref.tr.t[j1])}}
 const avg=k=>otros.length?otros.reduce((s,o)=>s+o[k],0)/otros.length:null;
-return{n,sg,ia:OF?ia:mb.im,mb,i1,i2,dist:Math.round(mb.im*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});C.sort((a,b)=>a.n-b.n);
+return{n,sg,ia:OF?ia:mb.im,mb,i1,i2,dist:Math.round((OF?ia:mb.im)*ds),otros,avgLoss:avg('loss')||0,dFreno:otros.length?avg('freno')-mb.freno:0,dMin:otros.length?avg('vmin')-mb.vmin:0,dEx:otros.length?avg('vex')-mb.vex:0,vsRef}});C.sort((a,b)=>a.n-b.n);
 const O=telOrigin(TD),Pp=B.la.map((la,i)=>telXY(la,B.lo[i],O)),lossC=c=>Math.max(c.avgLoss,c.vsRef?c.vsRef.loss:0),mxL=Math.max(.1,...C.map(lossC)),cc=c=>{const l=lossC(c);return l<.04?'#2DD4BF':l<mxL*.5?'#F2C14E':'#E4384A'};
 return{best,laps:tr.map(x=>x.lap),val:val.length,fuera:out_.map(x=>x.lap),B,sec,ideal,mean,sd,C,ref,P:Pp,ds,cc,O,trs:val}}
 /* Dibujitos para los consejos del Coach */
