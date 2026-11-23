@@ -193,8 +193,9 @@
     '¡Esta curva te sale muy bien! ✅ Seguí haciéndola igual.': 'You take this corner really well! ✅ Keep doing it the same way.',
     'La rayita marca dónde empieza a frenar cada vuelta; el punto violeta, la velocidad más baja de la mejor vuelta.': 'The short line marks where each lap starts braking; the purple dot, the lowest speed of the best lap.',
     '✦ Preguntale a la IA': '✦ Ask the AI',
-    'Tocá el gráfico o el mapa para marcar un punto (línea violeta) y preguntá qué pasó ahí.': 'Tap the chart or the map to mark a point (purple line) and ask what happened there.',
+    'Tocá el gráfico o el mapa para marcar un punto (línea violeta) y preguntá qué pasó ahí. También podés escribir, por ejemplo, «¿Qué pasó entre la curva 2 y la 3?».': 'Tap the chart or the map to mark a point (purple line) and ask what happened there. You can also type, for example, “What happened between corner 2 and 3?”.',
     'Preguntar': 'Ask', 'Pregunta para la IA': 'Question for the AI',
+    'número de curva': 'corner number',
     'Ranking': 'Ranking', 'Drivers': 'Drivers', 'Coach': 'Coach', 'Drivers sessions': 'Drivers sessions'
   };
 
@@ -296,7 +297,8 @@
     [/^Curva (\d+) \((\d+) m\): frenada a (\d+) m del vértice, entrada (\d+), mínima (\d+), salida (\d+) km\/h/, 'Corner $1 ($2 m): braking $3 m before apex, entry $4, minimum $5, exit $6 km/h'],
     [/ · resto de las vueltas /, ' · other laps '],
     [/^OBSERVACIONES · /, 'NOTES · '],
-    [/^Punto marcado: (\d+) m · sector (\d+)$/, 'Marked point: $1 m · sector $2'],
+    [/^Punto marcado: (\d+) m · (.+)$/, function (m, a, b) { return 'Marked point: ' + a + ' m · ' + b.replace(/^la recta principal \(entre la curva (\d+) y la 1\)$/, 'the main straight (between corner $1 and 1)').replace(/^la recta entre la curva (\d+) y la (\d+)$/, 'the straight between corner $1 and $2').replace(/^la curva (\d+)$/, 'corner $1').replace(/^la vuelta$/, 'the lap'); }],
+    [/^¿Qué hizo mal (.+) en la curva (\d+)\?$/, 'What did $1 do wrong in corner $2?'],
     [/^¿Qué hizo mal (.+) acá\?$/, 'What did $1 do wrong here?'],
     [/^Curva (\d+) \((\d+) m\)$/, 'Corner $1 ($2 m)'],
     [/^· a (\d+) m de la largada$/, '· $1 m from the start'],

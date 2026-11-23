@@ -401,7 +401,7 @@ if(!S.length){v.innerHTML='<div class="card"><p>Cuando cargues sesiones con su C
 sel.A=S[0].id;sel.B=(S.find(x=>x.piloto!==S[0].piloto&&x.pista===S[0].pista)||S.find(x=>x.piloto!==S[0].piloto)||S.find(x=>x.id!==S[0].id)||S[0]).id;
 const lbl=x=>`${fdate(x.fecha)} · ${x.tanda?tLbl(x.tanda):'sin tanda'} · ${x.mejor_vuelta!=null?fmtLap(x.mejor_vuelta):'—'} · ${x.pista||'sin pista'}`;
 v.innerHTML=`<div class="two cmpsel">${['A','B'].map(k=>`<div class="card side"><div class="sidet"><i class="chip" style="background:${k==='A'?AC:BC}"></i>Piloto ${k}</div><label>Piloto<select id="cp-${k}"></select></label><label>Sesión <span class="opt">(fecha · tanda · vuelta · pista)</span><select id="cs-${k}"></select></label></div>`).join('')}</div>
-<div class="card chartc"><div class="mut" id="cm-msg"></div><div id="cm-chart"></div><div class="read" id="cm-read"></div><div class="iabox"><div class="iat">✦ Preguntale a la IA</div><p class="mut sm">Tocá el gráfico o el mapa para marcar un punto (línea violeta) y preguntá qué pasó ahí.</p><div class="iapt" id="ia-pt"></div><form class="iarow" id="ia-f"><input id="ia-q" type="text" maxlength="600" autocomplete="off" aria-label="Pregunta para la IA"><button class="cta" type="submit" id="ia-go">Preguntar</button></form><div id="ia-a" class="iaa" aria-live="polite"></div></div></div>
+<div class="card chartc"><div class="mut" id="cm-msg"></div><div id="cm-chart"></div><div class="read" id="cm-read"></div><div class="iabox"><div class="iat">✦ Preguntale a la IA</div><p class="mut sm">Tocá el gráfico o el mapa para marcar un punto (línea violeta) y preguntá qué pasó ahí. También podés escribir, por ejemplo, «¿Qué pasó entre la curva 2 y la 3?».</p><div class="iapt" id="ia-pt"></div><form class="iarow" id="ia-f"><input id="ia-q" type="text" maxlength="600" autocomplete="off" aria-label="Pregunta para la IA"><button class="cta" type="submit" id="ia-go">Preguntar</button></form><div id="ia-a" class="iaa" aria-live="polite"></div></div></div>
 <div class="card mapc"><div class="mut">Mapa por sectores: cada sector va del color del piloto que fue más rápido ahí</div><div id="cm-map"></div></div>
 <div class="card"><div id="cm-sec"></div></div>`;
 const pil=()=>[...new Set(S.map(x=>x.piloto))].sort((a,b)=>a.localeCompare(b));
@@ -412,32 +412,8 @@ $('#cs-'+k).innerHTML=S.filter(x=>x.piloto===cur.piloto).map(x=>`<option value="
 const tel=id=>telFetch(S.find(s=>s.id===id));
 let A,B,TA,TB,O,run_id=0,ctxIA=null,curI=0;
 const fmtIA=t=>{let h='',ul=false;esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').split('\n').forEach(l=>{const m=l.match(/^\s*[-•*]\s+(.*)/);if(m){if(!ul){h+='<ul>';ul=true}h+='<li>'+m[1]+'</li>'}else{if(ul){h+='</ul>';ul=false}if(l.trim())h+='<p>'+l+'</p>'}});return h+(ul?'</ul>':'')};
-const respIA=(c,q,en)=>{const A_=c.piloto_A.nombre,B_=c.piloto_B.nombre,rA=c.resumen_A,rB=c.resumen_B,g=c.ventana.segundos_que_gana_A_en_la_ventana,n=x=>(en?x.toFixed(3):x.toFixed(3).replace('.',',')),m=Math.round,ql=q.toLowerCase();
-const M=c.muestras,mn=(g>=0?rB:rA).m_vel_min,cerca=M.filter(x=>Math.abs(x.m-mn)<=35),giro=(cerca.length?cerca:M).reduce((s,x)=>s+x.giro,0),curva=M.reduce((s,x)=>s+Math.abs(x.giro),0)>=40,der=giro>0;
-const winA=g>=0,W=winA?A_:B_,L=winA?B_:A_,rW=winA?rA:rB,rL=winA?rB:rA,ag=Math.abs(g);
-const pide=[A_,B_].find(x=>ql.includes(x.toLowerCase().split(' ')[0]));const out=[];let tip='';
-const tramo=en?`From ${c.ventana.desde_m} m to ${c.ventana.hasta_m} m`:`Entre los ${c.ventana.desde_m} m y los ${c.ventana.hasta_m} m`;
-const lugar=curva?(en?`this is a ${der?'right':'left'}-hand corner`:`hay una curva a la ${der?'derecha':'izquierda'}`):(en?'this part is mostly straight':'el tramo es casi recto');
-if(ag<0.02){out.push(en?`${tramo} ${lugar}, and ${A_} and ${B_} are practically equal (${n(ag)} s difference).`:`${tramo} ${lugar} y ${A_} y ${B_} van prácticamente iguales (${n(ag)} s de diferencia).`)}
-else{if(pide&&pide===W)out.push(en?`Actually, ${W} did nothing wrong here: ${W} gains ${n(ag)} s on ${L}.`:`En realidad acá ${W} no hizo nada mal: le gana ${n(ag)} s a ${L}.`);
-out.push(pide&&pide===W?(en?`${tramo} ${lugar}.`:`${tramo} ${lugar}.`):(en?`${tramo} ${lugar}. ${L} loses ${n(ag)} s against ${W}.`:`${tramo} ${lugar}. ${L} pierde ${n(ag)} s contra ${W}.`))}
-let av=0,seg=null;if(ag>=0.02&&M.length>3){const sg=winA?1:-1,K=Math.min(5,M.length-1);let bi=0,bv=-1e9;for(let j=0;j+K<M.length;j++){const v=(M[j+K].dt-M[j].dt)*sg;if(v>bv){bv=v;bi=j}}
-seg=M.slice(bi,bi+K+1);av=seg.reduce((s,x)=>s+(winA?x.vB-x.vA:x.vA-x.vB),0)/seg.length;if(bv>=0.01)out.push(en?`The biggest loss is between ${seg[0].m} m and ${seg[K].m} m (${n(bv)} s), where ${L} goes ${m(Math.abs(av))} km/h ${av<0?'slower':'faster'} on average.`:`Donde más pierde es entre los ${seg[0].m} m y los ${seg[K].m} m (${n(bv)} s): ahí ${L} va en promedio ${m(Math.abs(av))} km/h ${av<0?'más lento':'más rápido'}.`)}
-const fW=rW.m_empieza_a_frenar,fL=rL.m_empieza_a_frenar,dm=fL!=null&&fW!=null?fW-fL:0,dv=rL.vel_min-rW.vel_min,dx=rL.vel_al_salir_de_la_ventana-rW.vel_al_salir_de_la_ventana,dt0=rL.vel_max_antes-rW.vel_max_antes;
-if(fL!=null&&fW!=null&&Math.abs(dm)>=5){out.push(dm>0?(en?`${L} starts braking ${m(dm)} m earlier than ${W} (at ${fL} m instead of ${fW} m).`:`${L} empieza a frenar ${m(dm)} m antes que ${W} (a los ${fL} m en vez de a los ${fW} m).`):(en?`${L} brakes ${m(-dm)} m later than ${W} (at ${fL} m).`:`${L} frena ${m(-dm)} m más tarde que ${W} (a los ${fL} m).`))}
-if(Math.abs(dv)>=1.5)out.push(en?`At the slowest point ${L} goes ${m(rL.vel_min)} km/h and ${W} ${m(rW.vel_min)} km/h (${m(Math.abs(dv))} km/h ${dv<0?'slower':'faster'}).`:`En el punto más lento ${L} va a ${m(rL.vel_min)} km/h y ${W} a ${m(rW.vel_min)} km/h (${m(Math.abs(dv))} km/h ${dv<0?'más lento':'más rápido'}).`);
-if(Math.abs(dx)>=1.5)out.push(en?`Leaving this part, ${L} is at ${m(rL.vel_al_salir_de_la_ventana)} km/h and ${W} at ${m(rW.vel_al_salir_de_la_ventana)} km/h.`:`Al salir del tramo ${L} va a ${m(rL.vel_al_salir_de_la_ventana)} km/h y ${W} a ${m(rW.vel_al_salir_de_la_ventana)} km/h.`);
-if(ag>=0.02){if(dm>=5&&dv<=0)tip=en?`Brake a little later: pick a mark on the track (a cone, a kerb) a few meters further on and start braking there.`:`Frená un poquito más tarde: elegí una marca en la pista (un cono, un piano) unos metros más adelante y empezá a frenar ahí.`;
-else if(dv<=-1.5&&curva)tip=en?`Don't slow down so much: let the kart roll through the corner, it can go faster than you think.`:`No frenes tanto: dejá que el kart corra en la curva, puede ir más rápido de lo que pensás.`;
-else if(dv>=1.5&&dx<=-1.5)tip=en?`You enter too fast and then the exit is slow. Brake a bit earlier and smoother so you can accelerate sooner.`:`Entrás muy rápido y después salís lento. Frená un poquito antes y más suave, así podés acelerar antes.`;
-else if(dx<=-1.5)tip=en?`Accelerate fully as soon as the kart starts to straighten up at the exit.`:`Acelerá a fondo apenas el kart empieza a enderezarse en la salida.`;
-else if(av<=-1&&seg)tip=en?`Carry more speed between ${seg[0].m} m and ${seg[seg.length-1].m} m: ${curva?'brake less and get on the throttle sooner':'accelerate fully sooner when leaving the corner'}.`:`Llevá más velocidad entre los ${seg[0].m} m y los ${seg[seg.length-1].m} m: ${curva?'frená menos y acelerá antes':'acelerá a fondo antes al salir de la curva'}.`;
-else if(dt0<=-1.5||!curva)tip=en?`The time is lost before this point: exit the previous corner well to carry more speed here.`:`El tiempo se pierde antes: salí bien de la curva anterior para llegar con más velocidad acá.`;
-else tip=en?`It's a small difference: keep your line smooth and look at where you want to go.`:`Es una diferencia chica: mantené la línea suave y mirá hacia donde querés ir.`}
-else tip=en?`Both are doing it well here: keep it up!`:`Los dos lo hacen bien acá: ¡a seguir así!`;
-out.push((en?'Tip: ':'Consejo: ')+tip);return out.join('\n')};
-$('#ia-f').onsubmit=e=>{e.preventDefault();if(!ctxIA)return;const qi=$('#ia-q'),q=qi.value.trim()||qi.placeholder,ctx=ctxIA(curI),en=window.LANG==='en';
-$('#ia-a').innerHTML=`<div class="iaq">${esc(q)} <span class="mut">· ${ctx.punto_marcado.m} m · sector ${ctx.punto_marcado.sector}</span></div><div class="iar">${fmtIA(respIA(ctx,q,en))}</div>`};
+$('#ia-f').onsubmit=e=>{e.preventDefault();if(!ctxIA)return;const qi=$('#ia-q'),q=qi.value.trim()||qi.placeholder,r=ctxIA(q,curI,window.LANG==='en');
+$('#ia-a').innerHTML=`<div class="iaq">${esc(q)} <span class="mut">· ${esc(r.donde)}</span></div><div class="iar">${fmtIA(r.texto)}</div>`}
 async function run(){const my=++run_id,xa=S.find(x=>x.id===sel.A),xb=S.find(x=>x.id===sel.B);$('#cm-msg').textContent='Bajando los CSV…';$('#ia-a').innerHTML='';
 try{const[ta,tb]=await Promise.all([tel(sel.A),tel(sel.B)]);if(my!==run_id)return;const la=telBest(telLaps(ta)),lb=telBest(telLaps(tb));
 A=lapTrace(ta,la);B=lapTrace(tb,lb);O=telOrigin(ta);TA={x:xa,lap:la};TB={x:xb,lap:lb};const same=xa.piloto===xb.piloto,tag=x=>same?`${x.piloto} ${x.tanda?(TESP[+x.tanda]||'T'+x.tanda):'T?'}${xa.id===xb.id?(x===xa?' (A)':' (B)'):''}`:x.piloto;TA.x={...xa,piloto:tag(xa)};TB.x={...xb,piloto:tag(xb)};
@@ -456,29 +432,73 @@ $('#cm-chart').innerHTML=`<svg id="cm-svg" class="chart" viewBox="0 0 740 300" r
 // mapa por sectores
 const PA=A.la.map((la,i)=>telXY(la,A.lo[i],O)),PB=B.la.map((la,i)=>telXY(la,B.lo[i],O)),xs=PA.map(p=>p[0]),ys=PA.map(p=>p[1]),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),pad=Math.max(x1-x0,y1-y0)*.08,s=Math.max(x1-x0,y1-y0)/100;
 const sec=[];for(let k=0;k<NS;k++){const i0=Math.round(k/NS*N),i1=Math.round((k+1)/NS*N);sec.push({k,i0,i1,a:A.t[i1]-A.t[i0],b:B.t[i1]-B.t[i0]})}
+const st=A.len/N,CR=findCorners(A).map((ia,ci)=>{const mb=cornerM(A,ia);return{n:ci+1,ia:mb.im,i0:Math.max(0,mb.ib-Math.round(20/st)),i1:Math.min(N,mb.im+Math.round(60/st))}});
+for(let k=1;k<CR.length;k++)if(CR[k].i0<CR[k-1].i1){const mid=Math.round((CR[k-1].ia+CR[k].ia)/2);CR[k-1].i1=Math.min(CR[k-1].i1,mid);CR[k].i0=Math.max(CR[k].i0,mid)}
+const nC=CR.length,ZN=[],recta=(i0,i1,a,b)=>{if(i1-i0>2)ZN.push({tipo:'recta',a,b,i0,i1})};
+if(nC){recta(0,CR[0].i0,nC,1);CR.forEach((c,k)=>{ZN.push({tipo:'curva',a:c.n,ia:c.ia,i0:c.i0,i1:c.i1});if(k<nC-1)recta(c.i1,CR[k+1].i0,c.n,c.n+1)});recta(CR[nC-1].i1,N,nC,1)}else ZN.push({tipo:'recta',i0:0,i1:N});
+{const f=ZN[0],l=ZN[ZN.length-1];if(ZN.length>2&&f.tipo==='recta'&&l.tipo==='recta'&&f.a===nC&&l.a===nC){f.par=l;l.par=f}}
+const hdg=j=>{const p=PA[Math.max(0,j-1)],q=PA[Math.min(N,j+1)];return Math.atan2(q[1]-p[1],q[0]-p[0])};
+ZN.forEach((z,zi)=>{z.zi=zi;z.g0=(B.t[z.i1]-B.t[z.i0])-(A.t[z.i1]-A.t[z.i0]);let h=0;for(let j=z.i0;j<z.i1;j+=2){let d=hdg(Math.min(z.i1,j+2))-hdg(j);d=((d+3*Math.PI)%(2*Math.PI))-Math.PI;h+=d}z.giro=h*180/Math.PI;
+if(z.tipo==='curva'){z.mA=cornerM(A,z.ia);z.mB=cornerM(B,z.ia)}else{const mx=o=>Math.max(...o.v.slice(z.i0,z.i1+1));z.vmaxA=mx(A);z.vmaxB=mx(B)}});
+ZN.forEach(z=>{z.g=z.g0+(z.par?z.par.g0:0);if(z.par){z.vmaxA=Math.max(z.vmaxA,z.par.vmaxA);z.vmaxB=Math.max(z.vmaxB,z.par.vmaxB)}});
+const zName=(z,en)=>z.tipo==='curva'?(en?`corner ${z.a}`:`la curva ${z.a}`):z.a==null?(en?'the lap':'la vuelta'):z.a===nC&&z.b===1?(en?`the main straight (between corner ${nC} and 1)`:`la recta principal (entre la curva ${nC} y la 1)`):(en?`the straight between corner ${z.a} and ${z.b}`:`la recta entre la curva ${z.a} y la ${z.b}`);
+const zOf=i=>ZN.find(z=>z.tipo==='curva'&&i>=z.i0&&i<=z.i1)||ZN.find(z=>i>=z.i0&&i<=z.i1)||ZN[ZN.length-1];
+const zStep=(z,d)=>{if(ZN.length<2)return null;let k=z.zi;for(let t=0;t<ZN.length;t++){k=(k+d+ZN.length)%ZN.length;const x=ZN[k];if(x!==z&&x!==z.par)return x}return null};
 let path='';sec.forEach(q=>{const c=q.a<=q.b?AC:BC;path+=`<polyline fill="none" stroke="${c}" stroke-width="${(s*1.3).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round" points="${PA.slice(q.i0,q.i1+1).map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}"/>`;
-const pm=PA[Math.round((q.i0+q.i1)/2)];path+=`<text x="${pm[0].toFixed(1)}" y="${pm[1].toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="secn" dy="${(s*-2.2).toFixed(1)}">${q.k+1}</text>`});
-const p0=PA[0];
+if(!nC){const pm=PA[Math.round((q.i0+q.i1)/2)];path+=`<text x="${pm[0].toFixed(1)}" y="${pm[1].toFixed(1)}" font-size="${(s*3.4).toFixed(1)}" class="secn" dy="${(s*-2.2).toFixed(1)}">${q.k+1}</text>`}});
+path+=CR.map(c=>{const p=PA[c.ia];return`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${(s*2.4).toFixed(2)}" fill="var(--surf)" stroke="var(--ink)" stroke-width="${(s*.35).toFixed(2)}"/><text x="${p[0].toFixed(1)}" y="${p[1].toFixed(1)}" dy="${(s*1.15).toFixed(2)}" font-size="${(s*3.1).toFixed(1)}" class="cnum cnum2">${c.n}</text>`}).join('');const p0=PA[0];
 $('#cm-map').innerHTML=`<svg viewBox="${(x0-pad).toFixed(1)} ${(y0-pad).toFixed(1)} ${(x1-x0+2*pad).toFixed(1)} ${(y1-y0+2*pad).toFixed(1)}" class="gsvg cmmap" role="img" aria-label="Mapa por sectores"><path d="M${PA.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}" fill="none" stroke="var(--line)" stroke-width="${(s*2.8).toFixed(2)}" stroke-linejoin="round"/>${path}
 <circle cx="${p0[0].toFixed(1)}" cy="${p0[1].toFixed(1)}" r="${(s*.9).toFixed(2)}" fill="none" stroke="var(--ink)" stroke-width="${(s*.4).toFixed(2)}"/><circle id="cm-db" r="${(s*1.5).toFixed(2)}" fill="${BC}" stroke="var(--surf)" stroke-width="${(s*.45).toFixed(2)}"/><circle id="cm-da" r="${(s*1.5).toFixed(2)}" fill="${AC}" stroke="var(--surf)" stroke-width="${(s*.45).toFixed(2)}"/></svg>
-<div class="gleg mut"><span class="lg" style="background:${AC}"></span>${esc(TA.x.piloto)} más rápido<span class="lg" style="background:${BC}"></span>${esc(TB.x.piloto)} más rápido</div>`;
+<div class="gleg mut"><span class="lg" style="background:${AC}"></span>${esc(TA.x.piloto)} más rápido<span class="lg" style="background:${BC}"></span>${esc(TB.x.piloto)} más rápido${nC?'<span class="cbdg">1</span>número de curva':''}</div>`;
 const tot=[A.time,B.time];
 $('#cm-sec').innerHTML=`<table class="db sect"><thead><tr><th>Sector</th><th style="color:${AC}">${esc(TA.x.piloto)}</th><th style="color:${BC}">${esc(TB.x.piloto)}</th><th>Dif.</th></tr></thead><tbody>${sec.map(q=>{const w=q.a<=q.b;return`<tr><td>${q.k+1}</td><td class="${w?'win':''}" style="${w?'color:'+AC:''}">${q.a.toFixed(3)}</td><td class="${w?'':'win'}" style="${w?'':'color:'+BC}">${q.b.toFixed(3)}</td><td class="mut">${(q.b-q.a>=0?'+':'−')+Math.abs(q.b-q.a).toFixed(3)}</td></tr>`}).join('')}
 <tr class="tot"><td>Vuelta</td><td>${fmtLap(tot[0])}</td><td>${fmtLap(tot[1])}</td><td class="mut">${(tot[1]-tot[0]>=0?'+':'−')+Math.abs(tot[1]-tot[0]).toFixed(3)}</td></tr></tbody></table><p class="mut sm">Dif.: positivo = ${esc(TA.x.piloto)} más rápido en ese sector.</p>`;
 const sc=i=>{const x=X(i);$('#cm-cur').setAttribute('x1',x);$('#cm-cur').setAttribute('x2',x);[['#cm-da',PA[i]],['#cm-db',PB[i]]].forEach(([id,p])=>{const e=$(id);if(e&&p){e.setAttribute('cx',p[0]);e.setAttribute('cy',p[1])}});
-curI=i;const ms=Math.round(i/N*A.len);$('#ia-pt').textContent=`Punto marcado: ${ms} m · sector ${Math.min(NS,Math.floor(i/N*NS)+1)}`;{const w=Math.max(10,Math.round(90/(A.len/N))),gw=dl[Math.min(N,i+w)]-dl[Math.max(0,i-w)];$('#ia-q').placeholder=`¿Qué hizo mal ${gw>=0?TB.x.piloto:TA.x.piloto} acá?`}
+curI=i;const ms=Math.round(i*st),zz=zOf(i);$('#ia-pt').textContent=`Punto marcado: ${ms} m · ${zName(zz,false)}`;$('#ia-q').placeholder=`¿Qué hizo mal ${zz.g>=0?TB.x.piloto:TA.x.piloto} ${zz.tipo==='curva'?'en la curva '+zz.a:'acá'}?`;
 const d=dl[i];$('#cm-read').textContent=`${Math.round(i/N*A.len)} m · ${TA.x.piloto} ${Math.round(A.v[i])} km/h · ${TB.x.piloto} ${Math.round(B.v[i])} km/h · ${d>=0?TB.x.piloto:TA.x.piloto} ${d>=0?'+':'+'}${Math.abs(d).toFixed(3)} s`};
 const svg=$('#cm-svg'),mv=e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*740;sc(Math.max(0,Math.min(N,Math.round((x-44)/680*N))))};svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',mv);
 const map=$('#cm-map svg');map.addEventListener('pointerdown',e=>{const r=map.getBoundingClientRect(),vb=map.viewBox.baseVal,k=Math.max(vb.width/r.width,vb.height/r.height),ox=vb.x+(vb.width-r.width*k)/2,oy=vb.y+(vb.height-r.height*k)/2,x=ox+(e.clientX-r.left)*k,y=oy+(e.clientY-r.top)*k;let bi=0,bd=1e18;PA.forEach((p,i)=>{const dd=(p[0]-x)**2+(p[1]-y)**2;if(dd<bd){bd=dd;bi=i}});sc(bi)});
-ctxIA=i=>{const st=A.len/N,w=Math.max(10,Math.round(90/st)),f=Math.max(0,i-w),t=Math.min(N,i+w),k=Math.max(1,Math.round((t-f)/30)),r1=x=>Math.round(x*10)/10,r3=x=>Math.round(x*1000)/1000;
-const hd=j=>{const p=PA[Math.max(0,j-1)],q=PA[Math.min(N,j+1)];return Math.atan2(q[1]-p[1],q[0]-p[0])};
-const muestras=[];for(let j=f;j<=t;j+=k){const j2=Math.min(t,j+k);let g=(hd(j2)-hd(j))*180/Math.PI;g=((g+540)%360)-180;muestras.push({m:Math.round(j*st),vA:r1(A.v[j]),vB:r1(B.v[j]),dt:r3(dl[j]),giro:Math.round(g)})}
-const res=o=>{let mi=f;for(let j=f;j<=t;j++)if(o.v[j]<o.v[mi])mi=j;let mx=f;for(let j=f;j<=mi;j++)if(o.v[j]>o.v[mx])mx=j;return{vel_min:r1(o.v[mi]),m_vel_min:Math.round(mi*st),vel_max_antes:r1(o.v[mx]),m_empieza_a_frenar:mx<mi?Math.round(mx*st):null,vel_al_salir_de_la_ventana:r1(o.v[t])}};
-const pil=T=>({nombre:T.x.piloto,tipo_kart:T.x.tipo||null,motor:T.x.motor||null,neumaticos:T.x.neumaticos||null,condicion_pista:T.x.condicion||null,vuelta:T.lap.n||null,tiempo_vuelta:fmtLap(T.lap.t)});
-return{pista:TA.x.pista||TB.x.pista||null,largo_vuelta_m:Math.round(A.len),piloto_A:pil(TA),piloto_B:pil(TB),
-punto_marcado:{m:Math.round(i*st),sector:Math.min(NS,Math.floor(i/N*NS)+1),vA:r1(A.v[i]),vB:r1(B.v[i]),dt:r3(dl[i])},
-ventana:{desde_m:Math.round(f*st),hasta_m:Math.round(t*st),segundos_que_gana_A_en_la_ventana:r3(dl[t]-dl[f])},resumen_A:res(A),resumen_B:res(B),
-sectores:sec.map(q=>({sector:q.k+1,A:r3(q.a),B:r3(q.b)})),muestras}};
+ctxIA=(q,i,en)=>{const A_=TA.x.piloto,B_=TB.x.piloto,ql=q.toLowerCase(),m=Math.round,n=x=>{const v=Math.abs(x).toFixed(Math.abs(x)<1?3:2);return en?v:v.replace('.',',')},cap=t=>t.charAt(0).toUpperCase()+t.slice(1),ms=m(i*st);
+const zc=c=>ZN.find(z=>z.tipo==='curva'&&z.a===c);let sel=null,rango=null;
+const mm=nC&&ql.match(/(?:curva|corner|turn)s?\s*(\d+)(?:\s*(?:y|a|hasta|and|to|-)\s*(?:la\s+|the\s+)?(?:curva\s*|corner\s*|turn\s*)?(\d+))?/);
+if(mm){let c1=+mm[1],c2=mm[2]?+mm[2]:null;if(c2&&zc(c1)&&zc(c2)&&c1!==c2){if(c2<c1)[c1,c2]=[c2,c1];sel=ZN.filter(z=>z.zi>=zc(c1).zi&&z.zi<=zc(c2).zi);rango=[c1,c2]}else if(zc(c1))sel=[zc(c1)]}
+const foco=sel||[zOf(i)],z0=foco[0],G=rango?foco.reduce((s_,z)=>s_+z.g0,0):z0.g,winA=G>=0,W=winA?A_:B_,L=winA?B_:A_,gl=z=>(winA?1:-1)*(rango?z.g0:z.g);
+const pide=[A_,B_].find(x=>ql.includes(x.toLowerCase().split(' ')[0]));
+const dirT=z=>z.tipo!=='curva'||Math.abs(z.giro)<20?'':(en?` (${z.giro>0?'right':'left'}-hand)`:` (a la ${z.giro>0?'derecha':'izquierda'})`);
+const lugar=rango?(en?`from corner ${rango[0]} to corner ${rango[1]}`:`desde la curva ${rango[0]} hasta la curva ${rango[1]}`):zName(z0,en);
+const hace=(z,quien)=>{const v=(winA?1:-1)*(rango?z.g0:z.g)*(quien===L?1:-1);return Math.abs(v)<0.02?(en?'is about the same':'va casi igual'):v>0?(en?`loses ${n(v)} s`:`pierde ${n(v)} s`):(en?`gains ${n(v)} s`:`gana ${n(v)} s`)};
+const out=[];
+if(!sel)out.push(en?`The marked point (${ms} m) is in ${zName(z0,true)}${dirT(z0)}.`:`El punto marcado (${ms} m) está en ${zName(z0,false)}${dirT(z0)}.`);
+else if(!rango&&dirT(z0))out.push(en?`${cap(zName(z0,true))} is a ${z0.giro>0?'right':'left'}-hand corner.`:`${cap(zName(z0,false))} es una curva a la ${z0.giro>0?'derecha':'izquierda'}.`);
+const iguales=Math.abs(G)<0.02;
+if(iguales)out.push(en?`${cap(rango?lugar:'there')}, ${A_} and ${B_} are practically equal (${n(G)} s difference).`:`${cap(rango?lugar:'ahí')} ${A_} y ${B_} van prácticamente iguales (${n(G)} s de diferencia).`);
+else if(pide&&pide===W)out.push(en?`Actually, ${W} did nothing wrong ${rango?lugar:'there'}: ${W} gains ${n(G)} s on ${L}.`:`En realidad ${rango?lugar:'ahí'} ${W} no hizo nada mal: le gana ${n(G)} s a ${L}.`);
+else out.push(en?`${cap(rango?lugar:'there')}, ${L} loses ${n(G)} s against ${W}.`:`${cap(rango?lugar:'ahí')} ${L} pierde ${n(G)} s contra ${W}.`);
+if(rango)foco.forEach(z=>out.push(`- ${cap(zName(z,en))}: ${L} ${hace(z,L)}`));
+else{const pz=zStep(z0,-1),nz=zStep(z0,1),pr=[];if(pz)pr.push(en?`before, in ${zName(pz,true)}, ${L} ${hace(pz,L)}`:`antes, en ${zName(pz,false)}, ${L} ${hace(pz,L)}`);if(nz&&nz!==pz)pr.push(en?`after, in ${zName(nz,true)}, ${hace(nz,L)}`:`después, en ${zName(nz,false)}, ${hace(nz,L)}`);if(pr.length)out.push(cap(pr.join('; '))+'.')}
+const K=rango?foco.reduce((p_,z)=>gl(z)>gl(p_)?z:p_,foco[0]):z0;
+if(rango&&!iguales&&gl(K)>=0.02)out.push(en?`Where ${L} loses the most is ${zName(K,true)} (${n(gl(K))} s).`:`Donde más pierde ${L} es en ${zName(K,false)} (${n(gl(K))} s).`);
+let tip='';const wName=en?zName(K,true):zName(K,false),Lw=winA?'B':'A',Ww=winA?'A':'B';
+if(iguales||gl(K)<0.02)tip=iguales?(en?'Both are doing it well here: keep it up!':'Los dos lo hacen bien acá: ¡a seguir así!'):(en?'The difference is small here: keep your line smooth and look where you want to go.':'Acá la diferencia es chica: mantené la línea suave y mirá hacia donde querés ir.');
+else if(K.tipo==='curva'){const mL=K['m'+Lw],mW=K['m'+Ww],dm=(mW.ib-mL.ib)*st,dv=mL.vmin-mW.vmin,dx=mL.vex-mW.vex,pre=rango?(en?`In ${wName}, `:`En ${wName}, `):'';const why=[];
+if(Math.abs(dm)>=5)why.push(dm>0?(en?`${L} starts braking ${m(dm)} m earlier than ${W}`:`${L} empieza a frenar ${m(dm)} m antes que ${W}`):(en?`${L} brakes ${m(-dm)} m later than ${W}`:`${L} frena ${m(-dm)} m más tarde que ${W}`));
+if(Math.abs(dv)>=1.5)why.push(en?`at its slowest point ${L} goes ${m(mL.vmin)} km/h and ${W} ${m(mW.vmin)} km/h`:`en la parte más lenta ${L} va a ${m(mL.vmin)} km/h y ${W} a ${m(mW.vmin)} km/h`);
+if(Math.abs(dx)>=1.5)why.push(en?`on the exit ${L} is at ${m(mL.vex)} km/h and ${W} at ${m(mW.vex)} km/h`:`a la salida ${L} va a ${m(mL.vex)} km/h y ${W} a ${m(mW.vex)} km/h`);
+out.push(why.length?(pre?pre+why.join('; ')+'.':cap(why.join('; '))+'.'):(en?`${pre}The difference is spread through the whole corner: lots of small details.`:`${pre}La diferencia está repartida en toda la curva: son muchos detalles chiquitos.`));
+tip=dm>=5&&dv<1.5?(en?`In ${wName}, brake a little later: pick a mark (a cone, a kerb) a few meters further on and start braking there.`:`En ${wName}, frená un poquito más tarde: elegí una marca (un cono, un piano) unos metros más adelante y empezá a frenar ahí.`)
+:dv<=-1.5?(en?`In ${wName}, don't slow down so much: let the kart roll through the corner, it can go faster than you think.`:`En ${wName}, no frenes tanto: dejá que el kart corra en la curva, puede ir más rápido de lo que pensás.`)
+:dv>=1.5&&dx<=-1.5?(en?`In ${wName}, you go in too fast and then exit slowly. Brake a bit earlier and smoother so you can accelerate sooner.`:`En ${wName} entrás muy rápido y después salís lento. Frená un poquito antes y más suave, así podés acelerar antes.`)
+:dx<=-1.5?(en?`At the exit of ${wName}, go full throttle as soon as the kart starts to straighten.`:`A la salida de ${wName}, acelerá a fondo apenas el kart empieza a enderezarse.`)
+:(en?`In ${wName}, keep the line smooth: wide on entry, close to the inside in the middle, wide again on exit.`:`En ${wName}, hacé la línea suave: abierto al entrar, cerca de adentro en el medio y abierto otra vez al salir.`)}
+else{const vin=o=>o.v[K.i0],dIn=(winA?vin(B)-vin(A):vin(A)-vin(B)),dMx=(winA?K.vmaxB-K.vmaxA:K.vmaxA-K.vmaxB),pre=rango?(en?`On ${wName}, `:`En ${wName}, `):'';const why=[];
+if(Math.abs(dIn)>=1.5)why.push(en?`${L} starts the straight ${m(Math.abs(dIn))} km/h ${dIn<0?'slower':'faster'} than ${W}`:`${L} empieza la recta ${m(Math.abs(dIn))} km/h ${dIn<0?'más lento':'más rápido'} que ${W}`);
+if(Math.abs(dMx)>=1.5)why.push(en?`top speed: ${L} ${m(winA?K.vmaxB:K.vmaxA)} km/h, ${W} ${m(winA?K.vmaxA:K.vmaxB)} km/h`:`velocidad máxima: ${L} ${m(winA?K.vmaxB:K.vmaxA)} km/h y ${W} ${m(winA?K.vmaxA:K.vmaxB)} km/h`);
+out.push(why.length?(pre?pre+why.join('; ')+'.':cap(why.join('; '))+'.'):(en?`${pre}Speeds are very similar; the difference is small.`:`${pre}Las velocidades son muy parecidas; la diferencia es chica.`));
+const prevC=K.a!=null?(en?`corner ${K.a}`:`la curva ${K.a}`):null;
+tip=dIn<=-1.5&&prevC?(en?`Exit ${prevC} better: full throttle as soon as the kart straightens, so you carry more speed down the straight.`:`Salí mejor de ${prevC}: acelerá a fondo apenas el kart se endereza, así llevás más velocidad en toda la recta.`)
+:(en?`On the straight: full throttle all the way, hands steady and the kart straight.`:`En la recta: a fondo todo el tiempo, las manos quietas y el kart derechito.`)}
+out.push((en?'Tip: ':'Consejo: ')+tip);
+return{donde:rango?(en?`corner ${rango[0]} → ${rango[1]}`:`curva ${rango[0]} → ${rango[1]}`):sel?zName(z0,en):`${ms} m · ${zName(z0,en)}`,texto:out.join('\n')}};
 sc(Math.round(N*.1))}
 fill('A');fill('B');run();
 const refresh=async()=>{if(document.hidden)return;const ids=S.map(x=>x.id).join();try{await loadList()}catch(e){return}if(S.map(x=>x.id).join()===ids)return;if(document.activeElement&&/^c[ps]-/.test(document.activeElement.id||''))return;fill('A');fill('B')};

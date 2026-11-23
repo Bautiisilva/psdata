@@ -306,3 +306,5 @@ form.col .gc{width:100%;margin-top:8px;padding:10px}
 .iaq{font:500 14px Barlow,sans-serif;margin-bottom:6px}
 .iar{background:var(--bg);border-left:3px solid var(--acc);border-radius:8px;padding:10px 12px;line-height:1.5}
 .iar p{margin:0 0 6px}.iar p:last-child{margin:0}.iar ul{margin:4px 0 6px;padding-left:20px}
+.cnum2{fill:var(--ink)}
+.cbdg{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--ink);font:700 11px "Barlow Condensed",sans-serif;color:var(--ink);margin:0 4px 0 12px;vertical-align:-3px}
